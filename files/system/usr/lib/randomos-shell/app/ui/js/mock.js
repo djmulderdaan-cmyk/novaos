@@ -27,7 +27,7 @@ if (!window.nova) {
   ].map((g) => ({ installed: true, launch: { type: 'custom', cmd: 'true' }, ...g }));
   const games = [...steam, ...extra];
 
-  let cfg = { accent: '#2aa8e8', sounds: true, ambient: true, intro: true, name: '', favorites: ['steam:413150', 'steam:367520'], recent: {} };
+  let cfg = { accent: '#2aa8e8', sounds: true, ambient: true, intro: true, perf: false, name: '', favorites: ['steam:413150', 'steam:367520'], recent: {} };
   try { cfg = { ...cfg, ...JSON.parse(localStorage.getItem('randomos-demo') || '{}') }; } catch {}
   const saveCfg = () => { try { localStorage.setItem('randomos-demo', JSON.stringify(cfg)); } catch {} };
 

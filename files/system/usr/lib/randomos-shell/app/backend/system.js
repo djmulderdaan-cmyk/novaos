@@ -171,7 +171,8 @@ async function power(action, app) {
       return { ok: true };
     }
     case 'restart-shell':
-      setTimeout(() => { app.relaunch(); app.exit(0); }, 300);
+      // exitcode 42 = het startscript start de shell meteen opnieuw
+      setTimeout(() => app.exit(42), 300);
       return { ok: true };
     default:
       return { error: 'Onbekende actie' };

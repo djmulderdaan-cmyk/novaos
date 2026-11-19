@@ -11,6 +11,7 @@ const DEFAULTS = {
   sounds: true,
   ambient: true,
   intro: true,
+  perf: false, // prestatiemodus: minder effecten
   name: '',
   favorites: [],
   recent: {}, // gameId -> laatst gestart (ms), voor niet-Steam games

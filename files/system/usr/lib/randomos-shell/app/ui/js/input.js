@@ -58,9 +58,12 @@ const Input = (() => {
     }
     for (const a of active) press(a, now);
     for (const a of Object.keys(held)) if (!active.has(a)) delete held[a];
-    requestAnimationFrame(poll);
+    schedule();
   }
+  // Tijdens een game: 8x per seconde in plaats van elke frame
+  const schedule = () => (Input.lowPower ? setTimeout(poll, 120) : requestAnimationFrame(poll));
   requestAnimationFrame(poll);
 
-  return { on: (fn) => listeners.push(fn), textMode: false, lastStyle: 'xbox' };
+  const Input = { on: (fn) => listeners.push(fn), textMode: false, lastStyle: 'xbox', lowPower: false };
+  return Input;
 })();

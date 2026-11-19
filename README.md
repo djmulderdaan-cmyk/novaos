@@ -1,7 +1,7 @@
 # RandomOS
 
 Een eigen console-achtig gaming-OS, gebouwd op [Bazzite](https://bazzite.gg) met [BlueBuild](https://blue-build.org).
-Start op met een eigen opstartscherm en gaat dan meteen naar een controller-interface (Game Mode).
+Start op met een eigen opstartscherm (de astronaut 🚀🃏) en gaat dan meteen naar **RandomOS Shell**: een eigen console-menu dat je volledig met je controller bedient.
 
 ![Opstartscherm](preview-opstartscherm.png)
 
@@ -13,7 +13,12 @@ Start op met een eigen opstartscherm en gaat dan meteen naar een controller-inte
 | `recipes/common.yml` | **Hier pas je je OS aan**: extra programma's, scripts |
 | `files/system/` | Wordt 1-op-1 in het OS gekopieerd (opstartthema zit hier) |
 | `files/scripts/branding.sh` | Zet je naam in het opstartmenu en activeert het opstartscherm |
-| `tools/make_logo.py` | Maakt het logo opnieuw (andere naam/kleur) |
+| `files/scripts/install-shell.sh` | Installeert Electron (het venster waarin RandomOS Shell draait) |
+| `files/system/usr/lib/randomos-shell/app/` | **RandomOS Shell**: de interface (`ui/`) en de koppeling met het systeem (`backend/`) |
+| `files/system/etc/gamescope-session-plus/sessions.d/ogui-steam` | Laat Game Mode starten met RandomOS Shell |
+| `assets/` | De astronaut (origineel + uitgeknipt) |
+| `tools/cutout_mascot.py` | Knipt de astronaut uit zijn blauwe achtergrond |
+| `tools/make_logo.py` | Maakt de plaatjes voor het opstartscherm opnieuw (andere naam/kleur) |
 | `.github/workflows/build.yml` | Laat GitHub je OS elke dag automatisch bouwen |
 
 ---
@@ -21,7 +26,7 @@ Start op met een eigen opstartscherm en gaat dan meteen naar een controller-inte
 ## Stap 1 — Project op GitHub zetten
 
 1. Maak een (gratis) account op github.com.
-2. Maak een nieuwe **public** repository, bijvoorbeeld `randomos`.
+2. Maak een nieuwe **public** repository, bijvoorbeeld `novaos`.
 3. Upload deze hele map (makkelijkst met **GitHub Desktop**: *Add existing repository* → *Publish*).
 
 ## Stap 2 — Ondertekeningssleutel maken (eenmalig)
@@ -101,4 +106,47 @@ Iets stuk na een update? Kies in het opstartmenu de vorige versie, of typ `rpm-o
   python tools/make_logo.py "MijnNaam" "#ff5a7a"
   ```
   en verander `OS_NAME` in `files/scripts/branding.sh`.
-- **Eigen logo**: vervang `files/system/usr/share/plymouth/themes/randomos/logo.png` (transparante PNG, max ~600 px breed).
+- **Andere mascotte**: vervang `assets/mascot-bron.png` en draai `python tools/cutout_mascot.py` en daarna `python tools/make_logo.py`.
+
+---
+
+## RandomOS Shell
+
+Het hoofdmenu van RandomOS. Bediening:
+
+| Knop (Xbox / PlayStation) | Doet |
+|---|---|
+| A / ✕ | Kiezen, spelen |
+| B / ○ | Terug |
+| X / □ | Favoriet maken |
+| Y / △ | Snelmenu (volume, helderheid, batterij, wifi) |
+| LB RB / L1 R1 | Tabblad wisselen (Home · Bibliotheek · Instellingen) |
+| ☰ / Options | Aan/uit-menu (slaapstand, herstarten, uitzetten, bureaublad) |
+| Xbox / PS-knop | Naar Home. **Ingedrukt houden tijdens een game: game stoppen** |
+
+**Prestaties:** zodra een game draait, "slaapt" de shell: hij tekent niks en leest de controller maar 8× per seconde uit.
+Op een zwakkere laptop kun je in *Instellingen → Uiterlijk* de **Prestatiemodus** aanzetten (geen vervaging, gloed of lichtjes).
+
+**Eigen games toevoegen** (in de bureaubladmodus): maak `~/.config/randomos/games.json`:
+
+```json
+[
+  { "name": "Mijn game", "cmd": "/home/jij/Games/mijngame/start.sh", "cover": "~/Games/mijngame/cover.jpg" }
+]
+```
+
+Epic-, GOG- en Amazon-games uit **Heroic** en al je **Steam**-games verschijnen vanzelf.
+
+**Liever de gewone Steam-interface?** *Instellingen → Systeem → Gewone Steam-interface gebruiken*.
+Terug naar RandomOS Shell: ga naar de bureaubladmodus en start **"RandomOS Shell weer gebruiken"** uit het menu.
+
+**Gaat er iets mis?** Crasht de shell, dan start Game Mode automatisch met de gewone Steam-interface, dus je zit nooit vast.
+Het logboek staat in `~/.local/state/randomos/shell.log`.
+
+**Interface bekijken op Windows** (demo met nepdata):
+
+```powershell
+python -m http.server 8765 --directory files/system/usr/lib/randomos-shell/app/ui
+```
+
+en open `http://localhost:8765`. Toetsen: pijltjes, Enter (A), Esc (B), X, Y, Q/E (LB/RB), M (☰).

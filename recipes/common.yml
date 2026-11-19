@@ -16,9 +16,11 @@ modules:
       packages:
         - btop
 
-  # 3. Eigen naam + eigen opstartscherm activeren
+  # 3. RandomOS Shell (eigen console-menu) installeren
+  #    + eigen naam en opstartscherm activeren
   - type: script
     scripts:
+      - install-shell.sh
       - branding.sh
 
   # 4. Zorgt dat je eigen versie ondertekend en veilig te installeren is

@@ -85,8 +85,19 @@ function applySettings() {
   setAccent(S.settings.accent);
   Ambient.color(S.settings.accent);
   Sounds.setEnabled(S.settings.sounds);
-  if (S.settings.ambient && !(S.game && S.game.phase === 'running')) Ambient.start(); else Ambient.stop();
+  document.body.classList.toggle('perf', !!S.settings.perf);
+  if (S.settings.ambient && !S.settings.perf && !(S.game && S.game.phase === 'running')) Ambient.start(); else Ambient.stop();
 }
+
+// Slapen: zodra een game vooraan staat tekent de shell niks meer en pollt hij de controller zuinig
+function setSleeping(on) {
+  if (document.body.classList.contains('sleeping') === on) return;
+  document.body.classList.toggle('sleeping', on);
+  Input.lowPower = on;
+  if (on) Ambient.stop(); else applySettings();
+}
+window.addEventListener('blur', () => { if (S.game && S.game.phase === 'running') setSleeping(true); });
+window.addEventListener('focus', () => setSleeping(false));
 
 async function saveSettings(patch) {
   S.settings = await nova.settings.set(patch);
@@ -416,12 +427,13 @@ function onGameState(st) {
     S.game = st;
     const g = S.games.find((x) => x.id === st.id);
     if (!launchModal && g) showLaunch(g, st.phase); else updateLaunch(st.phase);
-    if (st.phase === 'running') Ambient.stop();
+    if (st.phase === 'running') { Ambient.stop(); if (!document.hasFocus()) setSleeping(true); }
     if (!prev || prev.phase !== st.phase) updateHints();
     return;
   }
   const had = S.game;
   S.game = null;
+  setSleeping(false);
   closeLaunch();
   applySettings();
   if (st && st.error) { Sounds.error(); toast(st.error, { bad: true, icon: 'info' }); }
@@ -560,6 +572,7 @@ async function renderCat() {
       toggleRow('Zwevende lichtjes', 'Rustige deeltjes op de achtergrond', S.settings.ambient, (v) => saveSettings({ ambient: v }), P),
       toggleRow('Opstartanimatie', 'Het RandomOS-logo bij het opstarten', S.settings.intro, (v) => saveSettings({ intro: v }), P),
       toggleRow('Geluidseffecten', 'Klikjes en tonen in de menu\'s', S.settings.sounds, (v) => saveSettings({ sounds: v }), P),
+      toggleRow('Prestatiemodus', 'Minder effecten (geen vervaging, gloed of lichtjes). Handig op zwakkere laptops.', S.settings.perf, (v) => saveSettings({ perf: v }), P),
       actionRow('Opstartanimatie bekijken', null, 'sparkle', async () => { document.body.classList.remove('ready'); await playIntro(); document.body.classList.add('ready'); }, P)));
   }
 

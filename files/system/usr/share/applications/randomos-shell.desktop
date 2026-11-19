@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=RandomOS Shell weer gebruiken
+Comment=Zet het RandomOS-hoofdmenu weer aan en ga terug naar Game Mode
+Exec=/usr/libexec/randomos/use-randomos-shell
+Icon=/usr/lib/randomos-shell/app/ui/img/mascot.png
+Categories=Game;

@@ -1,0 +1,6 @@
+#!/usr/bin/bash
+# Zet RandomOS Shell weer aan als hoofdmenu en ga terug naar Game Mode.
+rm -f "${HOME}/.config/randomos/use-steam-ui"
+command -v notify-send >/dev/null && notify-send -i /usr/lib/randomos-shell/app/ui/img/mascot.png "RandomOS Shell staat weer aan" "Je gaat nu terug naar Game Mode."
+sleep 1
+steamosctl switch-to-game-mode 2>/dev/null || /usr/libexec/os-session-select gamescope

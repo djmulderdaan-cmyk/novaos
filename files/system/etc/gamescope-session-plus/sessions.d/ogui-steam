@@ -1,0 +1,9 @@
+# RandomOS: Game Mode start met RandomOS Shell in plaats van de standaard-interface.
+# Dit bestand wordt ingelezen NA het originele sessiebestand van Bazzite.
+#
+# Liever de gewone Steam-interface? Maak dit bestand aan: ~/.config/randomos/use-steam-ui
+# (kan ook via RandomOS Shell > Instellingen > Systeem).
+if [ ! -f "${HOME}/.config/randomos/use-steam-ui" ]; then
+  RANDOMOS_FALLBACK_CMD="$CLIENTCMD"
+  CLIENTCMD="/usr/libexec/randomos/randomos-client"
+fi
