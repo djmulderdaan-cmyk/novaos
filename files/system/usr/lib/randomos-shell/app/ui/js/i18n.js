@@ -56,6 +56,7 @@ const I18N = (() => {
     'Nog geen games': { en: 'No games yet' },
     'Installeer games via Steam, of voeg Epic- en GOG-games toe met Heroic in de bureaubladmodus. Ze verschijnen hier vanzelf.': { en: 'Install games through Steam, or add Epic and GOG games with Heroic in desktop mode. They’ll show up here automatically.' },
     'Steam openen': { en: 'Open Steam' },
+    'Winkel en downloads': { en: 'Store and downloads' },
     'Updates': { en: 'Updates' },
     'Updates zijn hier niet beschikbaar.': { en: 'Updates are not available here.' },
     'Versie {v}': { en: 'Version {v}' },

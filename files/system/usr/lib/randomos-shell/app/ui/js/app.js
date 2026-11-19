@@ -262,6 +262,10 @@ function renderHome() {
   const more = h('button', { class: 'tile wide', 'data-focus': true, 'data-group': 'rail', onclick: () => switchTab('library') },
     h('div', { class: 'more' }, h('span', { class: 'ico apps' }), h('span', {}, t('Alle games')), h('span', { style: { color: 'var(--text-3)', fontSize: '.85rem' } }, t('{n} geïnstalleerd', { n: S.games.length }))));
   rail.append(more);
+  // Vaste tegel naar Steam (winkel, bibliotheek, downloads)
+  const steamTile = h('button', { class: 'tile wide', 'data-focus': true, 'data-group': 'rail', onclick: () => (S.steamLoggedIn === false ? steamLogin() : openSteamFront()) },
+    h('div', { class: 'more' }, h('span', { class: 'ico steam' }), h('span', {}, 'Steam'), h('span', { style: { color: 'var(--text-3)', fontSize: '.85rem' } }, t('Winkel en downloads'))));
+  rail.append(steamTile);
   if (!S.hero || !list.find((g) => g.id === S.hero.id)) setHero(list[0]);
 }
 const game = (el) => el._game;

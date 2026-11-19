@@ -234,6 +234,7 @@ function openSteamBigPicture() {
   ensureSteam();
   spawn('steam', ['steam://open/bigpicture'], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
   gamescope.focusSteam();
+  watchSteamFront();
   return { ok: true };
 }
 
@@ -261,6 +262,7 @@ function steamStatus() {
 function steamLogin() {
   ensureSteam();
   gamescope.focusSteam();
+  watchSteamFront();
   clearInterval(loginTimer);
   const started = Date.now();
   loginTimer = setInterval(() => {
@@ -303,7 +305,40 @@ function watchdog() {
 // Is er een groot, zichtbaar Steam-venster (Big Picture, inlogscherm of bibliotheek)?
 function steamWindowOpen() {
   const out = windowTitles();
-  return out.split('\n').some((l) => /\("steamwebhelper" "steam"\)/.test(l) && /\b(1[2-9]\d\d|[2-9]\d\d\d)x(\d{3,4})\+/.test(l));
+  const ids = out.split('\n')
+    .filter((l) => /\("steamwebhelper" "steam"\)/.test(l) && /\b(1[2-9]\d\d|[2-9]\d\d\d)x(\d{3,4})\+/.test(l))
+    .map((l) => (l.match(/^\s*(0x[0-9a-f]+)/i) || [])[1])
+    .filter(Boolean);
+  for (const id of ids) {
+    try {
+      const info = execFileSync('xwininfo', ['-id', id], { env: process.env, timeout: 2000 }).toString();
+      if (!/Map State:\s*IsViewable/.test(info)) continue; // geminimaliseerd of verborgen
+      const st = execFileSync('xprop', ['-id', id, '_NET_WM_STATE'], { env: process.env, timeout: 2000 }).toString();
+      if (/_NET_WM_STATE_HIDDEN/.test(st)) continue;
+      return true;
+    } catch {}
+  }
+  return false;
+}
+
+// Zolang Steam vooraan staat: snel controleren, en terug naar RandomOS zodra Steam weg/geminimaliseerd is
+let steamFrontTimer = null;
+function watchSteamFront() {
+  clearInterval(steamFrontTimer);
+  let seen = false;
+  const started = Date.now();
+  steamFrontTimer = setInterval(() => {
+    if (gamescope.mode !== 'steam') { clearInterval(steamFrontTimer); return; }
+    const open = steamWindowOpen();
+    if (open) seen = true;
+    // even tijd geven om te openen (Big Picture kan een paar seconden duren)
+    if (!open && (seen || Date.now() - started > 20000)) {
+      clearInterval(steamFrontTimer);
+      console.log('[steam] venster dicht/geminimaliseerd, terug naar RandomOS');
+      gamescope.focusShell();
+      steamEmit(steamStatus());
+    }
+  }, 1500);
 }
 
 function focusShell() {
