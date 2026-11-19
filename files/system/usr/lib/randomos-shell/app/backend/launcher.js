@@ -32,10 +32,47 @@ function steamRunning() {
   try { execFileSync('pgrep', ['-x', 'steam'], { stdio: 'ignore' }); return true; } catch { return false; }
 }
 
-function ensureSteam() {
-  if (!hasCommand('steam') || steamRunning()) return;
-  const child = spawn('steam', ['-silent'], { detached: true, stdio: 'ignore' });
+// Steam ziet XDG_CURRENT_DESKTOP=gamescope en gaat dan zelf Big Picture spelen en de focus van
+// gamescope sturen. RandomOS is de interface, dus Steam draait als gewone achtergrond-client.
+const STEAM_ENV = { ...process.env, XDG_CURRENT_DESKTOP: 'KDE', XDG_SESSION_DESKTOP: 'KDE', DESKTOP_SESSION: 'plasma' };
+
+function steamPids() {
+  try { return execFileSync('pgrep', ['-x', 'steam']).toString().split('\n').filter(Boolean).map(Number); } catch { return []; }
+}
+
+// Draait Steam in "gamescope-modus"? Dan wil hij de interface overnemen.
+function steamInGamescopeMode() {
+  for (const pid of steamPids()) {
+    try {
+      if (/\0XDG_CURRENT_DESKTOP=gamescope\0/.test('\0' + fs.readFileSync(`/proc/${pid}/environ`, 'latin1'))) return true;
+    } catch {}
+  }
+  return false;
+}
+
+function startSteam() {
+  const child = spawn('steam', ['-silent'], { detached: true, stdio: 'ignore', env: STEAM_ENV });
   child.unref();
+}
+
+let restartingSteam = false;
+function ensureSteam() {
+  if (!hasCommand('steam') || restartingSteam) return;
+  if (!steamRunning()) { startSteam(); return; }
+  if (steamInGamescopeMode()) {
+    // netjes afsluiten en als achtergrond-client opnieuw starten
+    console.log('[steam] draait in gamescope-modus, herstarten als achtergrond-client');
+    restartingSteam = true;
+    spawn('steam', ['-shutdown'], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
+    let tries = 0;
+    const wait = setInterval(() => {
+      if (!steamRunning() || ++tries > 40) {
+        clearInterval(wait);
+        for (const pid of steamPids()) { try { process.kill(pid, 'SIGTERM'); } catch {} }
+        setTimeout(() => { restartingSteam = false; startSteam(); gamescope.focusShell(); }, 1500);
+      }
+    }, 500);
+  }
 }
 
 function runningSteamAppId() {
@@ -72,11 +109,11 @@ function launch(game) {
   if (l.type === 'steamshortcut') {
     // niet-Steam-game uit Steam (bv. een .exe met Proton): via Steam starten
     ensureSteam();
-    spawn('steam', [`steam://rungameid/${l.gameid}`], { detached: true, stdio: 'ignore' }).unref();
+    spawn('steam', [`steam://rungameid/${l.gameid}`], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
     gamescope.focusGame(l.appid, () => [...processesWithEnv('SteamGameId', l.gameid), ...processesWithEnv('SteamAppId', l.appid)]);
   } else if (l.type === 'steam') {
     ensureSteam();
-    spawn('steam', [`steam://rungameid/${l.appid}`], { detached: true, stdio: 'ignore' }).unref();
+    spawn('steam', [`steam://rungameid/${l.appid}`], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
     // game-vensters herkennen aan SteamAppId en vooraan zetten
     gamescope.focusGame(l.appid, () => processesWithEnv('SteamAppId', l.appid));
   } else {
@@ -195,7 +232,7 @@ function onShellFocus() {
 
 function openSteamBigPicture() {
   ensureSteam();
-  spawn('steam', ['steam://open/bigpicture'], { detached: true, stdio: 'ignore' }).unref();
+  spawn('steam', ['steam://open/bigpicture'], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
   gamescope.focusSteam();
   return { ok: true };
 }
@@ -249,8 +286,24 @@ function watchdog() {
       ensureSteam();
       if (gamescope.mode === 'steam') gamescope.focusShell();
     }
-  } else steamDownSince = 0;
+  } else {
+    steamDownSince = 0;
+    // Steam mag niet zelf de interface gaan spelen (Big Picture + focus overnemen)
+    if (!current && steamInGamescopeMode()) ensureSteam();
+  }
   if (!current) gamescope.ensure();
+  // Steam vooraan maar geen groot Steam-venster meer open (Big Picture/inlogscherm gesloten)? Terug naar de shell.
+  if (!current && gamescope.mode === 'steam' && !steamWindowOpen()) {
+    console.log('[watchdog] Steam-venster gesloten, terug naar RandomOS');
+    gamescope.focusShell();
+    steamEmit(steamStatus());
+  }
+}
+
+// Is er een groot, zichtbaar Steam-venster (Big Picture, inlogscherm of bibliotheek)?
+function steamWindowOpen() {
+  const out = windowTitles();
+  return out.split('\n').some((l) => /\("steamwebhelper" "steam"\)/.test(l) && /\b(1[2-9]\d\d|[2-9]\d\d\d)x(\d{3,4})\+/.test(l));
 }
 
 function focusShell() {

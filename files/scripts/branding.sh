@@ -14,3 +14,7 @@ KVER="$(ls /usr/lib/modules | sort -V | tail -n1)"
 dracut --no-hostonly --kver "$KVER" --reproducible --zstd -v \
        --add ostree -f "/usr/lib/modules/${KVER}/initramfs.img"
 chmod 0600 "/usr/lib/modules/${KVER}/initramfs.img"
+
+# Automatische updates aan: elke dag op de achtergrond downloaden en klaarzetten.
+# (Op deck-images regelt Steam dat normaal, maar RandomOS Shell vervangt de Steam-interface.)
+systemctl enable uupd.timer || true

@@ -99,5 +99,19 @@ if (!window.nova) {
     },
     onGameState: (cb) => { gameCb = cb; },
     onSteamState: () => {},
+    updates: (() => {
+      let progressCb = () => {}; let staged = null;
+      return {
+        status: async () => ({ available: true, image: 'ghcr.io/djmulderdaan-cmyk/randomos:latest', version: '45.20261119.0', date: new Date().toISOString(), staged }),
+        check: async () => { await wait(1500); return staged ? { available: false } : { available: true, version: '45.20261120.0' }; },
+        upgrade: async () => {
+          for (const l of ['Pulling manifest', 'Fetching layer 1/12', 'Fetching layer 6/12', 'Fetching layer 12/12', 'Staging deployment...done']) { progressCb(l); await wait(700); }
+          staged = { version: '45.20261120.0', date: new Date().toISOString() };
+          return { ok: true, staged: true };
+        },
+        rollback: async () => ({ ok: true }),
+        onProgress: (cb) => { progressCb = cb; },
+      };
+    })(),
   };
 }

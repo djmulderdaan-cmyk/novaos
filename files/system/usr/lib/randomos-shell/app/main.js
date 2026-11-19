@@ -6,6 +6,7 @@ const system = require('./backend/system');
 const launcher = require('./backend/launcher');
 const settings = require('./backend/settings');
 const gamescope = require('./backend/gamescope');
+const updates = require('./backend/updates');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
@@ -119,6 +120,10 @@ handle('sys:open-steam', () => launcher.openSteamBigPicture());
 handle('sys:steam-status', () => launcher.steamStatus());
 handle('sys:steam-login', () => launcher.steamLogin());
 handle('sys:focus-shell', () => launcher.focusShell());
+handle('upd:status', () => updates.status());
+handle('upd:check', () => updates.check());
+handle('upd:upgrade', () => updates.upgrade((line) => send('upd:progress', line)));
+handle('upd:rollback', () => updates.rollback());
 
 app.on('child-process-gone', (_e, d) => console.log('[main] hulpproces weg:', d && d.type, d && d.reason, d && d.exitCode));
 

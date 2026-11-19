@@ -84,6 +84,10 @@ async function boot() {
   const st = await nova.games.state();
   if (st) onGameState(st);
   setInterval(refreshStatus, 10000);
+  setTimeout(async () => {
+    const st = nova.updates && await nova.updates.status();
+    if (st && st.staged) toast(t('Er staat een update klaar. Herstart om hem te installeren.'), { icon: 'restart', ms: 7000 });
+  }, 4000);
   setInterval(updateClock, 5000);
   updateClock();
 }

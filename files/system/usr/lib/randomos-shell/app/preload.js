@@ -35,5 +35,12 @@ contextBridge.exposeInMainWorld('nova', {
     focusShell: call('sys:focus-shell'),
   },
   onGameState: (cb) => ipcRenderer.on('game:state', (_e, s) => cb(s)),
+  updates: {
+    status: call('upd:status'),
+    check: call('upd:check'),
+    upgrade: call('upd:upgrade'),
+    rollback: call('upd:rollback'),
+    onProgress: (cb) => ipcRenderer.on('upd:progress', (_e, l) => cb(l)),
+  },
   onSteamState: (cb) => ipcRenderer.on('steam:state', (_e, s) => cb(s)),
 });

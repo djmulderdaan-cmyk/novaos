@@ -367,6 +367,7 @@ async function renderCat() {
 
   if (id === 'system') {
     head(t('Systeem'));
+    out.push(await updatesGroup(P));
     const i = await nova.sys.info();
     const dl = h('dl', { class: 'info-grid' });
     // schijfruimte komt als "182 GB vrij van 237 GB" uit de backend
@@ -430,3 +431,82 @@ async function toggleHidden(g) {
   toast(nowHidden ? t('{title} verborgen', { title: g.title }) : t('{title} is weer zichtbaar', { title: g.title }), { icon: nowHidden ? 'info' : 'check' });
   rerenderAll();
 }
+
+// ---------------------------------------------------------------- updates
+function fmtUpdateDate(iso) {
+  return iso ? new Date(iso).toLocaleDateString(I18N.locale, { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+}
+
+async function updatesGroup(P) {
+  const st = await nova.updates.status();
+  const box = h('div', {});
+  if (!st || !st.available) {
+    box.append(h('div', { class: 'row static', style: { color: 'var(--text-2)' } }, t('Updates zijn hier niet beschikbaar.')));
+    return group(t('Updates'), box);
+  }
+  const versionRow = h('div', { class: 'row static' },
+    h('span', { class: 'ico refresh' }),
+    h('div', { class: 'r-main' }, h('div', { class: 'r-title' }, t('Versie {v}', { v: st.version || '?' })), h('div', { class: 'r-desc' }, fmtUpdateDate(st.date))));
+  box.append(versionRow);
+
+  const progress = h('div', { class: 'row static upd-progress', style: { display: 'none' } }, h('div', { class: 'spinner', style: { width: '22px', height: '22px', borderWidth: '3px' } }), h('div', { class: 'r-main' }, ''));
+  const setProgress = (text) => { progress.style.display = ''; $('.r-main', progress).textContent = text; };
+
+  const rebootRow = () => actionRow(t('Herstarten om de update te installeren'), st.staged ? t('Versie {v} staat klaar', { v: st.staged.version || '' }) : null, 'restart', async () => {
+    const ok = await confirmBox(t('Nu herstarten?'), t('De laptop start opnieuw op met de nieuwe versie. Dat duurt ongeveer een minuut.'), t('Herstarten'));
+    if (ok) nova.sys.power('reboot');
+  }, P);
+
+  if (st.staged) {
+    box.append(rebootRow());
+  } else {
+    const checkRow = actionRow(t('Zoeken naar updates'), t('RandomOS zoekt ook elke dag automatisch'), 'refresh', async (row) => {
+      $('.r-title', row).textContent = t('Zoeken…');
+      const r = await nova.updates.check();
+      if (r && r.available) {
+        $('.r-title', row).textContent = t('Update beschikbaar');
+        $('.r-desc', row).textContent = r.version ? t('Versie {v}', { v: r.version }) : '';
+        const go = actionRow(t('Nu updaten'), t('Downloaden en klaarzetten; je kunt gewoon blijven spelen'), 'restart', async () => {
+          go.remove();
+          setProgress(t('Update downloaden…'));
+          const done = await nova.updates.upgrade();
+          if (done && done.ok && !done.nothing) {
+            progress.style.display = 'none';
+            toast(t('Update klaar! Herstart om hem te installeren.'), { icon: 'check', ms: 6000 });
+            S.updateStaged = true;
+            refreshCat();
+          } else if (done && done.nothing) {
+            setProgress(t('Je hebt al de nieuwste versie'));
+          } else {
+            setProgress(t((done && done.error) || 'Update mislukt'));
+            Sounds.error();
+          }
+        }, P);
+        row.after(go);
+        Focus.set(go);
+      } else if (r && r.error) {
+        $('.r-title', row).textContent = t('Zoeken naar updates');
+        toast(t(r.error), { bad: true, icon: 'info' });
+      } else {
+        $('.r-title', row).textContent = t('Je hebt de nieuwste versie');
+      }
+    }, P);
+    box.append(checkRow);
+  }
+  box.append(progress);
+  if (st.canRollback) {
+    box.append(actionRow(t('Terug naar vorige versie'), t('Als een update problemen geeft. Wordt actief na een herstart.'), 'restart', async () => {
+      const ok = await confirmBox(t('Vorige versie terugzetten?'), t('Na de volgende herstart start de laptop met de vorige versie van RandomOS.'), t('Terugzetten'));
+      if (!ok) return;
+      const r = await nova.updates.rollback();
+      toast(r && r.ok ? t('Vorige versie staat klaar. Herstart om terug te gaan.') : t('Terugzetten mislukt'), { icon: r && r.ok ? 'check' : 'info', bad: !(r && r.ok) });
+    }, P));
+  }
+  return group(t('Updates'), box);
+}
+nova.updates && nova.updates.onProgress((line) => {
+  const el = $('.upd-progress .r-main');
+  if (!el) return;
+  const m = line.match(/(\d+)\/(\d+)/);
+  el.textContent = m ? t('Update downloaden… {a} van {b}', { a: m[1], b: m[2] }) : /Staging|deploy/i.test(line) ? t('Update klaarzetten…') : t('Update downloaden…');
+});
