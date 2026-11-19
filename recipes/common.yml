@@ -15,6 +15,7 @@ modules:
     install:
       packages:
         - btop
+        - brightnessctl # helderheid regelen vanuit RandomOS Shell
 
   # 3. RandomOS Shell (eigen console-menu) installeren
   #    + eigen naam en opstartscherm activeren
@@ -22,6 +23,7 @@ modules:
     scripts:
       - install-shell.sh
       - branding.sh
+      - wallpaper.sh
 
   # 4. Zorgt dat je eigen versie ondertekend en veilig te installeren is
   - type: signing

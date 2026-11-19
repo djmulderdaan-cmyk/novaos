@@ -57,7 +57,8 @@ const handle = (channel, fn) =>
   });
 
 handle('games:list', () => games.listAll());
-handle('games:launch', (game) => launcher.launch(game));
+// De interface stuurt alleen een id; het commando komt altijd uit onze eigen gamelijst
+handle('games:launch', (id) => launcher.launch(games.listAll().find((g) => g.id === (id && id.id ? id.id : id))));
 handle('games:stop', () => launcher.stop());
 handle('games:state', () => launcher.state());
 handle('profile:get', () => games.profile());

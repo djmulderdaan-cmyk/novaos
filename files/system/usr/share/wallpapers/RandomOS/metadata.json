@@ -1,0 +1,11 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "RandomOS"
+            }
+        ],
+        "Id": "RandomOS",
+        "Name": "RandomOS"
+    }
+}

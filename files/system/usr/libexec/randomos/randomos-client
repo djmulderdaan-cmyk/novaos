@@ -19,12 +19,21 @@ while true; do
   break
 done
 
-[ "$code" -eq 0 ] && exit 0
+# Steam (dat zonder interface op de achtergrond draait) netjes afsluiten
+stop_steam() {
+  pgrep -x steam >/dev/null || return 0
+  steam -shutdown >/dev/null 2>&1
+  for _ in $(seq 1 60); do pgrep -x steam >/dev/null || return 0; sleep 0.5; done
+  pkill -x steam; sleep 1
+}
+
+# 0 = bewust gestopt (bv. naar Steam-interface), 130/143 = afmelden of uitzetten
+case "$code" in
+  0|130|143) stop_steam; exit 0 ;;
+esac
 
 echo "Shell gecrasht: terugvallen op de Steam-interface" >>"$LOG"
-# Steam draait al op de achtergrond (zonder interface); netjes afsluiten en opnieuw starten met interface
-steam -shutdown >/dev/null 2>&1
-for _ in $(seq 1 30); do pgrep -x steam >/dev/null || break; sleep 0.5; done
+stop_steam
 
 if [ -n "$RANDOMOS_FALLBACK_CMD" ]; then
   eval "$RANDOMOS_FALLBACK_CMD"

@@ -8,7 +8,6 @@ const path = require('path');
 const os = require('os');
 const { spawn, execFileSync } = require('child_process');
 const settings = require('./settings');
-const { steamRoot } = require('./games');
 
 const HOME = os.homedir();
 let emit = () => {};
@@ -39,7 +38,7 @@ function ensureSteam() {
 }
 
 function runningSteamAppId() {
-  const candidates = [path.join(HOME, '.steam/registry.vdf'), steamRoot() && path.join(steamRoot(), '..', 'registry.vdf')].filter(Boolean);
+  const candidates = [path.join(HOME, '.steam/registry.vdf')];
   for (const f of candidates) {
     try {
       const m = fs.readFileSync(f, 'utf8').match(/"RunningAppID"\s+"(\d+)"/i);
@@ -62,6 +61,7 @@ function rememberPlayed(id) {
 }
 
 function launch(game) {
+  if (!game) return { error: 'Game niet gevonden' };
   if (current) return { error: `${current.game.title} draait al` };
   rememberPlayed(game.id);
   const l = game.launch;
@@ -81,7 +81,7 @@ function launch(game) {
         : spawn('heroic', ['--no-gui', url], { env, detached: true, stdio: 'ignore' });
     } else {
       child = spawn('bash', ['-lc', l.cmd], { env, detached: true, stdio: 'ignore' });
-      child.on('exit', () => { if (current && current.child === child) finish(); });
+      child.on('exit', () => setTimeout(() => { if (current && current.child === child && !gamePids(current.game.id).length) finish(); }, 4000));
     }
     child.on('error', () => finish('Kon de game niet starten'));
     child.unref();
@@ -105,9 +105,11 @@ function startPolling() {
       } else if (age > 120000) {
         finish('De game is niet gestart (Steam reageerde niet)');
       }
-    } else if (current.phase === 'launching' && age > 4000 && processesWithEnv('RANDOMOS_GAME', current.game.id).length) {
-      update({ phase: 'running', sawRunning: true });
-    } else if (current.sawRunning && current.game.launch.type === 'heroic' && !processesWithEnv('RANDOMOS_GAME', current.game.id).length) {
+    } else if (!current.sawPids && gamePids(current.game.id).length) {
+      // we zien de game-processen zelf: vanaf nu volgen we die
+      update({ phase: 'running', sawRunning: true, sawPids: true });
+    } else if (current.sawPids && !gamePids(current.game.id).length) {
+      // alle game-processen zijn weg -> klaar
       finish();
     } else if (!current.sawRunning && age > 120000) {
       finish('De game is niet gestart');
@@ -121,6 +123,13 @@ function finish(error) {
   current = null;
   emit(error ? { ended: ended && ended.id, error } : null);
 }
+
+// Processen van launchers/wrappers zelf tellen niet als de game
+const WRAPPERS = /^(heroic.*|electron|zypak.*|bwrap|flatpak.*|xdg-dbus-proxy|bash|sh|steam|steamwebhelper|reaper|pressure-vessel.*|srt-bwrap)$/i;
+function isWrapper(pid) {
+  try { return WRAPPERS.test(fs.readFileSync(`/proc/${pid}/comm`, 'utf8').trim()); } catch { return true; }
+}
+function gamePids(id) { return processesWithEnv('RANDOMOS_GAME', id).filter((pid) => !isWrapper(pid)); }
 
 function processesWithEnv(key, value) {
   const hits = [];
@@ -140,7 +149,7 @@ function processesWithEnv(key, value) {
 function stop() {
   if (!current) return { ok: true };
   const l = current.game.launch;
-  const pids = l.type === 'steam' ? processesWithEnv('SteamAppId', l.appid) : processesWithEnv('RANDOMOS_GAME', current.game.id);
+  const pids = l.type === 'steam' ? processesWithEnv('SteamAppId', l.appid) : gamePids(current.game.id);
   for (const pid of pids) { try { process.kill(pid, 'SIGTERM'); } catch {} }
   setTimeout(() => { for (const pid of pids) { try { process.kill(pid, 'SIGKILL'); } catch {} } }, 5000);
   if (current.child && current.child.pid) { try { process.kill(-current.child.pid, 'SIGTERM'); } catch {} }
@@ -150,12 +159,14 @@ function stop() {
 
 // Extra signaal uit gamescope: shell verliest focus = game staat vooraan
 function onShellBlur() {
-  if (current && current.phase === 'launching') update({ phase: 'running', sawRunning: true });
+  if (!current || current.phase !== 'launching') return;
+  // Steam: alleen registry.vdf bepaalt of de game echt draait (een "Voorbereiden"-venster telt niet)
+  update(current.game.launch.type === 'steam' ? { phase: 'running' } : { phase: 'running', sawRunning: true, blurredAt: Date.now() });
 }
 function onShellFocus() {
   // Steam-games worden betrouwbaar via RunningAppID gevolgd; voor andere games is focus-terug een goed teken
   if (current && current.sawRunning && current.game.launch.type !== 'steam' && Date.now() - current.startedAt > 5000) {
-    if (!processesWithEnv('RANDOMOS_GAME', current.game.id).length) finish();
+    if (!gamePids(current.game.id).length) finish();
   }
 }
 

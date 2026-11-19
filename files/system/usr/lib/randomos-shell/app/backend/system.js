@@ -146,7 +146,7 @@ async function btDevices() {
 async function btScan() { await run('bluetoothctl', ['--timeout', '8', 'scan', 'on'], 12000); return btDevices(); }
 
 async function btConnect(mac) {
-  await run('bluetoothctl', ['pair', mac], 20000);
+  await run('bluetoothctl', ['--agent', 'NoInputNoOutput', 'pair', mac], 25000);
   await run('bluetoothctl', ['trust', mac]);
   const r = await run('bluetoothctl', ['connect', mac], 20000);
   return /Connection successful/i.test(r.out) ? { ok: true } : { error: 'Verbinden mislukt. Staat het apparaat in koppelmodus?' };
