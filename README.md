@@ -66,17 +66,17 @@ Bewaar `cosign.key` ergens veilig.
 
 ## Stap 5 — Overstappen naar NovaOS
 
-In Bazzite: *Game Mode → Power → Switch to Desktop*, open **Konsole** en typ (vervang `JOUWNAAM` door je GitHub-naam):
+In Bazzite: *Game Mode → Power → Switch to Desktop*, open **Konsole** en typ:
 
 ```bash
-rpm-ostree rebase ostree-unverified-registry:ghcr.io/JOUWNAAM/novaos:latest
+rpm-ostree rebase ostree-unverified-registry:ghcr.io/djmulderdaan-cmyk/novaos:latest
 systemctl reboot
 ```
 
 Na de herstart (je ziet nu het NovaOS-opstartscherm), nog één keer om updates ondertekend te maken:
 
 ```bash
-rpm-ostree rebase ostree-image-signed:docker://ghcr.io/JOUWNAAM/novaos:latest
+rpm-ostree rebase ostree-image-signed:docker://ghcr.io/djmulderdaan-cmyk/novaos:latest
 systemctl reboot
 ```
 
