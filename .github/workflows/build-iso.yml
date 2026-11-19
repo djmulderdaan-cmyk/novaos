@@ -22,7 +22,7 @@ jobs:
       packages: read
     steps:
       - name: Schijfruimte vrijmaken
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0 (zelfde als Bazzite)
         with:
           tool-cache: true
 
