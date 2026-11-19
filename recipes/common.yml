@@ -1,0 +1,25 @@
+---
+# yaml-language-server: $schema=https://schema.blue-build.org/module-list-v1.json
+# Alles wat in je OS zit (gedeeld, zodat je later makkelijk een tweede versie kunt toevoegen).
+modules:
+  # 1. Kopieer alles uit files/system/ naar de root (/) van het OS
+  #    (opstartthema, plymouth-config, ...)
+  - type: files
+    files:
+      - source: system
+        destination: /
+
+  # 2. Extra programma's. Steam, Lutris, MangoHud, Gamescope zitten al in Bazzite.
+  #    Zet hier wat je zelf nog wilt hebben.
+  - type: dnf
+    install:
+      packages:
+        - btop
+
+  # 3. Eigen naam + eigen opstartscherm activeren
+  - type: script
+    scripts:
+      - branding.sh
+
+  # 4. Zorgt dat je eigen versie ondertekend en veilig te installeren is
+  - type: signing

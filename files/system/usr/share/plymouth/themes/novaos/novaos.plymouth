@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=NovaOS
+Description=NovaOS opstartscherm
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/novaos
+ScriptFile=/usr/share/plymouth/themes/novaos/novaos.script
