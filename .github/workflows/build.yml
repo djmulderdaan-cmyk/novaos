@@ -1,3 +1,4 @@
+# NovaOS build - bouwt het OS-image en zet het op ghcr.io
 name: bouw-novaos
 on:
   schedule:
