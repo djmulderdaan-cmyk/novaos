@@ -1,9 +1,9 @@
 ---
 # yaml-language-server: $schema=https://schema.blue-build.org/recipe-v1.json
-# NovaOS voor laptops met Intel- of AMD-graphics (bijv. Intel Iris Xe)
+# RandomOS voor laptops met Intel- of AMD-graphics (bijv. Intel Iris Xe)
 # Ooit een NVIDIA-laptop? Maak een kopie met base-image bazzite-deck-nvidia.
-name: novaos
-description: NovaOS - console-achtig gaming OS
+name: randomos
+description: RandomOS - console-achtig gaming OS
 
 # bazzite-deck = start direct op in de controller-interface (Game Mode)
 base-image: ghcr.io/ublue-os/bazzite-deck

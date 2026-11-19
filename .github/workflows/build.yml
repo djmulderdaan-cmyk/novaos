@@ -1,5 +1,5 @@
-# NovaOS build - bouwt het OS-image en zet het op ghcr.io
-name: bouw-novaos
+# RandomOS build - bouwt het OS-image en zet het op ghcr.io
+name: bouw-randomos
 on:
   schedule:
     - cron: "00 06 * * *" # elke dag nieuwe build met de laatste Bazzite-updates
@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   bluebuild:
-    name: Bouw NovaOS
+    name: Bouw RandomOS
     runs-on: ubuntu-latest
     permissions:
       contents: read

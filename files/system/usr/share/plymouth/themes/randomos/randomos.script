@@ -1,13 +1,13 @@
-# NovaOS opstartanimatie
-# Donkere achtergrond, logo fadet in en "ademt" daarna zacht, dunne laadbalk eronder.
+# RandomOS opstartanimatie
+# De astronaut zweeft rustig in beeld, de naam fadet in, dunne laadbalk eronder.
 
-Window.SetBackgroundTopColor(0.02, 0.03, 0.09);
-Window.SetBackgroundBottomColor(0.0, 0.0, 0.0);
+Window.SetBackgroundTopColor(0.02, 0.09, 0.20);
+Window.SetBackgroundBottomColor(0.0, 0.02, 0.07);
 
 cx = Window.GetX() + Window.GetWidth() / 2;
-cy = Window.GetY() + Window.GetHeight() / 2;
+cy = Window.GetY() + Window.GetHeight() / 2 - 60;
 
-# --- gloed achter het logo ---
+# --- gloed ---
 glow.image = Image("glow.png");
 glow.sprite = Sprite(glow.image);
 glow.sprite.SetX(cx - glow.image.GetWidth() / 2);
@@ -15,17 +15,28 @@ glow.sprite.SetY(cy - glow.image.GetHeight() / 2);
 glow.sprite.SetZ(1);
 glow.sprite.SetOpacity(0);
 
-# --- logo ---
-logo.image = Image("logo.png");
-logo.sprite = Sprite(logo.image);
-logo.sprite.SetX(cx - logo.image.GetWidth() / 2);
-logo.sprite.SetY(cy - logo.image.GetHeight() / 2);
-logo.sprite.SetZ(2);
-logo.sprite.SetOpacity(0);
+# --- astronaut ---
+mascot.image = Image("mascot.png");
+mascot.sprite = Sprite(mascot.image);
+mascot.x = cx - mascot.image.GetWidth() / 2;
+mascot.y = cy - mascot.image.GetHeight() / 2;
+mascot.sprite.SetX(mascot.x);
+mascot.sprite.SetY(mascot.y + 40);
+mascot.sprite.SetZ(2);
+mascot.sprite.SetOpacity(0);
+
+# --- naam ---
+word.image = Image("wordmark.png");
+word.sprite = Sprite(word.image);
+word.y = cy + mascot.image.GetHeight() / 2 + 18;
+word.sprite.SetX(cx - word.image.GetWidth() / 2);
+word.sprite.SetY(word.y);
+word.sprite.SetZ(2);
+word.sprite.SetOpacity(0);
 
 # --- laadbalk ---
 bar_w = 240;
-bar_y = cy + logo.image.GetHeight() / 2 + 60;
+bar_y = word.y + word.image.GetHeight() + 26;
 
 bar_bg.image = Image("bar.png").Scale(bar_w, 3);
 bar_bg.sprite = Sprite(bar_bg.image);
@@ -44,20 +55,26 @@ bar.sprite.SetOpacity(0);
 progress_now = 0;
 t = 0;
 
+fun smooth (a) {
+    if (a < 0) a = 0;
+    if (a > 1) a = 1;
+    return a * a * (3 - 2 * a);
+}
+
 fun refresh_callback () {
     t++;
-    if (t < 90) {
-        # eerste ~1,8 sec: rustig infaden
-        a = t / 90;
-        a = a * a * (3 - 2 * a);   # smoothstep
-        logo.sprite.SetOpacity(a);
-        glow.sprite.SetOpacity(a * 0.8);
-        bar_bg.sprite.SetOpacity(a * 0.15);
-        bar.sprite.SetOpacity(a * 0.9);
-    } else {
-        # daarna: gloed ademt zacht
-        glow.sprite.SetOpacity(0.55 + 0.25 * Math.Sin((t - 90) / 30));
-    }
+    # astronaut: komt in ~1,4 sec omhoog zweven en blijft daarna zacht dobberen
+    a = smooth(t / 70);
+    bob = Math.Sin(t / 28) * 7;
+    mascot.sprite.SetOpacity(a);
+    mascot.sprite.SetY(mascot.y + (1 - a) * 40 + bob * a);
+    glow.sprite.SetOpacity(a * (0.6 + 0.2 * Math.Sin(t / 35)));
+
+    # naam fadet iets later in
+    b = smooth((t - 45) / 50);
+    word.sprite.SetOpacity(b);
+    bar_bg.sprite.SetOpacity(b * 0.15);
+    bar.sprite.SetOpacity(b * 0.9);
 
     w = Math.Int(bar_w * progress_now);
     if (w < 1) w = 1;

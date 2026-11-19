@@ -1,0 +1,8 @@
+{
+  "name": "randomos-shell",
+  "productName": "RandomOS Shell",
+  "version": "1.0.0",
+  "description": "Het console-dashboard van RandomOS",
+  "main": "main.js",
+  "license": "MIT"
+}

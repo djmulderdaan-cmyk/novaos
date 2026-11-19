@@ -1,4 +1,4 @@
-# NovaOS
+# RandomOS
 
 Een eigen console-achtig gaming-OS, gebouwd op [Bazzite](https://bazzite.gg) met [BlueBuild](https://blue-build.org).
 Start op met een eigen opstartscherm en gaat dan meteen naar een controller-interface (Game Mode).
@@ -9,7 +9,7 @@ Start op met een eigen opstartscherm en gaat dan meteen naar een controller-inte
 
 | Bestand | Wat het doet |
 |---|---|
-| `recipes/recipe.yml` | Basis van je OS (Bazzite, Intel/AMD-graphics) → image `novaos` |
+| `recipes/recipe.yml` | Basis van je OS (Bazzite, Intel/AMD-graphics) → image `randomos` |
 | `recipes/common.yml` | **Hier pas je je OS aan**: extra programma's, scripts |
 | `files/system/` | Wordt 1-op-1 in het OS gekopieerd (opstartthema zit hier) |
 | `files/scripts/branding.sh` | Zet je naam in het opstartmenu en activeert het opstartscherm |
@@ -21,7 +21,7 @@ Start op met een eigen opstartscherm en gaat dan meteen naar een controller-inte
 ## Stap 1 — Project op GitHub zetten
 
 1. Maak een (gratis) account op github.com.
-2. Maak een nieuwe **public** repository, bijvoorbeeld `novaos`.
+2. Maak een nieuwe **public** repository, bijvoorbeeld `randomos`.
 3. Upload deze hele map (makkelijkst met **GitHub Desktop**: *Add existing repository* → *Publish*).
 
 ## Stap 2 — Ondertekeningssleutel maken (eenmalig)
@@ -48,7 +48,7 @@ Bewaar `cosign.key` ergens veilig.
 ## Stap 3 — Eerste build
 
 - Push/upload `cosign.pub`. Op GitHub, tab **Actions**, zie je de build starten (±20–40 min).
-- Als hij groen is: ga naar je profiel → **Packages** → `novaos` → *Package settings* → *Change visibility* → **Public**.
+- Als hij groen is: ga naar je profiel → **Packages** → `randomos` → *Package settings* → *Change visibility* → **Public**.
 
 ## Stap 4 — Installeren naast Windows
 
@@ -64,19 +64,19 @@ Bewaar `cosign.key` ergens veilig.
 3. Opstarten vanaf USB (F12/F2/Esc bij het opstarten), installeren op de **vrije ruimte**, *niet* "hele schijf wissen".
    Secure Boot mag aan blijven; volg de stap om de sleutel in te schrijven (wachtwoord: `universalblue`).
 
-## Stap 5 — Overstappen naar NovaOS
+## Stap 5 — Overstappen naar RandomOS
 
 In Bazzite: *Game Mode → Power → Switch to Desktop*, open **Konsole** en typ:
 
 ```bash
-rpm-ostree rebase ostree-unverified-registry:ghcr.io/djmulderdaan-cmyk/novaos:latest
+rpm-ostree rebase ostree-unverified-registry:ghcr.io/djmulderdaan-cmyk/randomos:latest
 systemctl reboot
 ```
 
-Na de herstart (je ziet nu het NovaOS-opstartscherm), nog één keer om updates ondertekend te maken:
+Na de herstart (je ziet nu het RandomOS-opstartscherm), nog één keer om updates ondertekend te maken:
 
 ```bash
-rpm-ostree rebase ostree-image-signed:docker://ghcr.io/djmulderdaan-cmyk/novaos:latest
+rpm-ostree rebase ostree-image-signed:docker://ghcr.io/djmulderdaan-cmyk/randomos:latest
 systemctl reboot
 ```
 
@@ -101,4 +101,4 @@ Iets stuk na een update? Kies in het opstartmenu de vorige versie, of typ `rpm-o
   python tools/make_logo.py "MijnNaam" "#ff5a7a"
   ```
   en verander `OS_NAME` in `files/scripts/branding.sh`.
-- **Eigen logo**: vervang `files/system/usr/share/plymouth/themes/novaos/logo.png` (transparante PNG, max ~600 px breed).
+- **Eigen logo**: vervang `files/system/usr/share/plymouth/themes/randomos/logo.png` (transparante PNG, max ~600 px breed).

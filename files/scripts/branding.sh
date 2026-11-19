@@ -2,7 +2,7 @@
 # Draait tijdens het bouwen (in de cloud). Zet je eigen naam en opstartscherm aan.
 set -euxo pipefail
 
-OS_NAME="NovaOS"
+OS_NAME="RandomOS"
 
 # Naam in het opstartmenu (GRUB) en systeeminfo
 sed -i "s/^PRETTY_NAME=.*/PRETTY_NAME=\"${OS_NAME}\"/" /usr/lib/os-release

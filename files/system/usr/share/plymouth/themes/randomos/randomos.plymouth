@@ -1,0 +1,8 @@
+[Plymouth Theme]
+Name=RandomOS
+Description=RandomOS opstartscherm
+ModuleName=script
+
+[script]
+ImageDir=/usr/share/plymouth/themes/randomos
+ScriptFile=/usr/share/plymouth/themes/randomos/randomos.script
