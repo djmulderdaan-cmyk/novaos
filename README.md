@@ -124,6 +124,18 @@ Het hoofdmenu van RandomOS. Bediening:
 | ☰ / Options | Aan/uit-menu (slaapstand, herstarten, uitzetten, bureaublad) |
 | Xbox / PS-knop | Naar Home. **Ingedrukt houden tijdens een game: game stoppen** |
 
+**Instellingen** (alles met de controller):
+- **Uiterlijk:** 8 thema's, accentkleur, achtergrond (game-art / ruimte / effen), tegelgrootte, tekstgrootte, klok, datum, batterij-%
+- **Effecten & geluid:** geluidspakketten (Zacht, Retro, Ruimte, Bubbels, Kristal, Klik) of **eigen geluiden**, menuvolume, animaties beperken, prestatiemodus
+- **Controller:** knoppenstijl (Xbox / PlayStation / Nintendo), A/B wisselen, scrollsnelheid, trillen, testscherm
+- **Home & bibliotheek:** starttabblad, favorieten eerst, verborgen games
+- **Energie:** screensaver met zwevende astronaut, automatisch slapen, batterijwaarschuwing
+- Wifi, Bluetooth (controllers koppelen), volume en helderheid, systeeminfo
+
+**Eigen geluiden:** zet in de bureaubladmodus bestanden in `~/.config/randomos/sounds/` met deze namen:
+`move` (bewegen), `select` (kiezen), `back` (terug), `tab`, `open`, `launch` (game starten), `boot` (opstarten).
+Formaat `.wav`, `.ogg` of `.mp3`, max 3 MB. Kies daarna *Instellingen → Effecten & geluid → Eigen*.
+
 **Prestaties:** zodra een game draait, "slaapt" de shell: hij tekent niks en leest de controller maar 8× per seconde uit.
 Op een zwakkere laptop kun je in *Instellingen → Uiterlijk* de **Prestatiemodus** aanzetten (geen vervaging, gloed of lichtjes).
 
