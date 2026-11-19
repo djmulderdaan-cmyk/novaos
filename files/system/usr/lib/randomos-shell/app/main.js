@@ -64,6 +64,7 @@ handle('profile:get', () => games.profile());
 
 handle('settings:get', () => settings.load());
 handle('settings:set', (patch) => settings.save(patch));
+handle('sounds:custom', () => settings.customSounds());
 
 handle('sys:status', () => system.status());
 handle('sys:info', () => system.info());

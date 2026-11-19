@@ -64,15 +64,18 @@ async function boot() {
   S.settings = await nova.settings.get();
   applySettings();
   refreshGlyphs();
+  loadCustomSounds();
   const introPromise = S.settings.intro ? playIntro() : Promise.resolve();
   await Promise.all([loadGames(), loadProfile(), refreshStatus()]);
   renderHome();
   renderLibrary();
   renderSettingsNav();
-  switchTab('home', { silent: true });
+  const startTab = S.settings.startTab === 'library' ? 'library' : 'home';
+  switchTab(startTab, { silent: true });
+  updateGreeting();
   await introPromise;
   document.body.classList.add('ready');
-  Focus.first('rail');
+  Focus.first(startTab === 'library' ? 'grid' : 'rail');
   updateHints();
   const st = await nova.games.state();
   if (st) onGameState(st);
@@ -86,6 +89,7 @@ function applySettings() {
   Ambient.color(S.settings.accent);
   Sounds.setEnabled(S.settings.sounds);
   document.body.classList.toggle('perf', !!S.settings.perf);
+  applyLook();
   if (S.settings.ambient && !S.settings.perf && !(S.game && S.game.phase === 'running')) Ambient.start(); else Ambient.stop();
 }
 
@@ -98,6 +102,13 @@ function setSleeping(on) {
 }
 window.addEventListener('blur', () => { if (S.game && S.game.phase === 'running') setSleeping(true); });
 window.addEventListener('focus', () => setSleeping(false));
+
+async function loadCustomSounds() {
+  const r = await nova.customSounds();
+  S.customSoundDir = (r && r.dir) || '~/.config/randomos/sounds';
+  S.customSoundCount = r && r.sounds ? await Sounds.loadCustom(r.sounds) : 0;
+  return S.customSoundCount;
+}
 
 async function saveSettings(patch) {
   S.settings = await nova.settings.set(patch);
@@ -142,7 +153,10 @@ async function loadProfile() {
 
 // ================================================================ status
 function updateClock() {
-  $('#clock').textContent = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+  const d = new Date();
+  const time = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', hour12: !!S.settings.clock12 });
+  const date = S.settings.showDate ? d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' }) + '  ' : '';
+  $('#clock').textContent = date + time;
 }
 
 async function refreshStatus() {
@@ -160,7 +174,7 @@ async function refreshStatus() {
   const batt = $('#stBatt');
   if (s.battery) {
     batt.style.display = '';
-    batt.innerHTML = `${ICONS.battery(s.battery.level, s.battery.status === 'Charging' || s.battery.status === 'Full')}<span>${s.battery.level}%</span>`;
+    batt.innerHTML = `${ICONS.battery(s.battery.level, s.battery.status === 'Charging' || s.battery.status === 'Full')}${S.settings.battPct !== false ? `<span>${s.battery.level}%</span>` : ''}`;
   } else batt.style.display = 'none';
 }
 
@@ -173,6 +187,7 @@ function switchTab(name, { silent = false } = {}) {
   $$('.tab').forEach((t) => t.classList.toggle('active', t.dataset.tab === name));
   if (!silent) Sounds.tab();
   const group = { home: 'rail', library: 'grid', settings: 'setnav' }[name];
+  if (name === 'home') updateGreeting();
   requestAnimationFrame(() => Focus.first(group));
   if (name === 'home' && S.hero) setBackground(S.hero.art.hero);
   updateHints();
@@ -204,9 +219,11 @@ function keepFocus(container, render) {
 }
 
 // ================================================================ home
+const isHidden = (g) => (S.settings.hidden || []).includes(g.id);
 function homeGames() {
-  return [...S.games]
-    .sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0) || (b.favorite - a.favorite) || a.title.localeCompare(b.title))
+  const favFirst = S.settings.homeRow === 'favorites';
+  return S.games.filter((g) => !isHidden(g))
+    .sort((a, b) => (favFirst ? b.favorite - a.favorite : 0) || (b.lastPlayed || 0) - (a.lastPlayed || 0) || (b.favorite - a.favorite) || a.title.localeCompare(b.title))
     .slice(0, 12);
 }
 
@@ -214,7 +231,7 @@ function renderHome() {
   const rail = $('#homeRail');
   rail.innerHTML = '';
   const list = homeGames();
-  $('#railTitle').textContent = list.some((g) => g.lastPlayed) ? 'Verder spelen' : 'Je games';
+  $('#railTitle').textContent = S.settings.homeRow === 'favorites' && list.some((g) => g.favorite) ? 'Favorieten' : list.some((g) => g.lastPlayed) ? 'Verder spelen' : 'Je games';
   if (!list.length) {
     $('#hero').style.visibility = 'hidden';
     rail.append(h('div', { class: 'empty' },
@@ -297,7 +314,7 @@ async function setBackground(urls) {
 
 // ================================================================ bibliotheek
 function libraryGames() {
-  let list = S.games.filter((g) => S.filter === 'all' || (S.filter === 'fav' ? g.favorite : g.source === S.filter));
+  let list = S.games.filter((g) => !isHidden(g)).filter((g) => S.filter === 'all' || (S.filter === 'fav' ? g.favorite : g.source === S.filter));
   if (S.query) { const q = S.query.toLowerCase(); list = list.filter((g) => g.title.toLowerCase().includes(q)); }
   return list.sort(S.sort === 'az' ? (a, b) => a.title.localeCompare(b.title) : (a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0) || a.title.localeCompare(b.title));
 }
@@ -376,6 +393,7 @@ function openDetail(g) {
         h('div', { class: 'd-actions' },
           h('button', { class: 'btn primary', 'data-focus': true, 'data-autofocus': true, onclick: () => { UI.closeModal(modal); launch(g); } }, h('span', { class: 'ico play' }), 'Spelen'),
           favBtn,
+          h('button', { class: 'btn ghost', 'data-focus': true, onclick: async () => { UI.closeModal(modal); await toggleHidden(g); } }, isHidden(g) ? 'Weer tonen' : 'Verbergen'),
           h('button', { class: 'btn ghost', 'data-focus': true, onclick: () => { Sounds.back(); UI.closeModal(modal); } }, 'Sluiten')))));
   favBtn.addEventListener('click', async () => { await toggleFavorite(g); const now = S.games.find((x) => x.id === g.id); $('.ico', favBtn).classList.toggle('on', now.favorite); favBtn.lastChild.textContent = now.favorite ? 'Favoriet' : 'Favoriet maken'; });
   modal = UI.openModal(sheet);
@@ -386,6 +404,7 @@ let launchModal = null;
 async function launch(g) {
   if (S.game) { Sounds.error(); toast(`${S.game.title} draait nog`, { icon: 'info', bad: true }); return; }
   Sounds.launch();
+  Input.rumble(0.5, 0.7, 220);
   showLaunch(g, 'launching');
   const r = await nova.games.launch(g);
   if (r && r.error) { closeLaunch(); Sounds.error(); toast(r.error, { bad: true, icon: 'info' }); }
@@ -443,40 +462,6 @@ function onGameState(st) {
 nova.onGameState(onGameState);
 
 // ================================================================ snelmenu
-function sliderRow(title, value, onChange, { step = 5, min = 0, max = 100, group = 'qm' } = {}) {
-  let v = value;
-  const fill = h('div', { class: 'fill' }), knob = h('div', { class: 'knob' }), num = h('span', { class: 'num' });
-  const track = h('div', { class: 'track' }, fill, knob);
-  const paint = () => { const p = ((v - min) / (max - min)) * 100; fill.style.width = p + '%'; knob.style.left = p + '%'; num.textContent = `${v}%`; };
-  let t = null;
-  const commit = () => { clearTimeout(t); t = setTimeout(() => onChange(v), 90); };
-  const row = h('div', { class: 'row', 'data-focus': true, 'data-slider': '', 'data-group': group },
-    h('div', { class: 'r-main', style: { flex: '0 0 auto', minWidth: '7.5em' } }, h('div', { class: 'r-title' }, title)),
-    h('div', { class: 'slider' }, track, num));
-  row.addEventListener('adjust', (e) => { const nv = Math.max(min, Math.min(max, v + e.detail * step)); if (nv !== v) { v = nv; paint(); Sounds.tick(); commit(); } });
-  track.addEventListener('click', (e) => { const r = track.getBoundingClientRect(); v = Math.round(((e.clientX - r.left) / r.width) * (max - min) / step) * step + min; v = Math.max(min, Math.min(max, v)); paint(); commit(); });
-  paint();
-  return row;
-}
-
-function toggleRow(title, desc, on, onChange, group) {
-  let state = !!on;
-  const tg = h('div', { class: `toggle${state ? ' on' : ''}` });
-  const row = h('button', { class: 'row', 'data-focus': true, 'data-group': group },
-    h('div', { class: 'r-main' }, h('div', { class: 'r-title' }, title), desc ? h('div', { class: 'r-desc' }, desc) : null), tg);
-  row.addEventListener('click', async () => { state = !state; tg.classList.toggle('on', state); Sounds.toggle(state); await onChange(state); });
-  return row;
-}
-
-function actionRow(title, desc, icon, onClick, group, value) {
-  const row = h('button', { class: 'row', 'data-focus': true, 'data-group': group },
-    icon ? h('span', { class: `ico ${icon}` }) : null,
-    h('div', { class: 'r-main' }, h('div', { class: 'r-title' }, title), desc ? h('div', { class: 'r-desc' }, desc) : null),
-    value != null ? (value.nodeType ? value : h('span', { class: 'r-val' }, value)) : null);
-  row.addEventListener('click', () => { Sounds.select(); onClick(row); });
-  return row;
-}
-
 async function openQuickMenu() {
   Sounds.open();
   const s = S.status || (await nova.sys.status());
@@ -511,198 +496,6 @@ function openPower() {
   modal = UI.openModal(h('div', { class: 'sheet power-sheet' }, h('h2', {}, 'Aan/uit'), list), { focus: () => Focus.first('power') });
 }
 
-// ================================================================ instellingen
-const CATS = [
-  { id: 'look', name: 'Uiterlijk', icon: 'palette' },
-  { id: 'wifi', name: 'Wifi', icon: 'wifi' },
-  { id: 'bt', name: 'Bluetooth', icon: 'bt' },
-  { id: 'sound', name: 'Geluid & scherm', icon: 'sound' },
-  { id: 'games', name: 'Games', icon: 'gamepad' },
-  { id: 'system', name: 'Systeem', icon: 'cpu' },
-  { id: 'about', name: 'Over RandomOS', icon: 'sparkle' },
-];
-
-function renderSettingsNav() {
-  const nav = $('#setNav');
-  nav.innerHTML = '';
-  for (const c of CATS) {
-    const b = h('button', { class: `nav-item${S.setCat === c.id ? ' on' : ''}`, 'data-focus': true, 'data-group': 'setnav', 'data-id': `cat-${c.id}` }, h('span', { class: `ico ${c.icon}` }), c.name);
-    let t;
-    b.addEventListener('focusin-nova', () => { clearTimeout(t); t = setTimeout(() => openCat(c.id), 120); });
-    b.addEventListener('click', () => { openCat(c.id); Focus.first('setpanel'); });
-    nav.append(b);
-  }
-  renderCat();
-}
-
-function openCat(id) {
-  if (S.setCat === id && $('#setPanel').childElementCount) return;
-  S.setCat = id;
-  $$('#setNav .nav-item').forEach((b) => b.classList.toggle('on', b.dataset.id === `cat-${id}`));
-  Focus.forget('setpanel');
-  renderCat();
-}
-
-function group(title, ...children) { return h('div', { class: 'set-group' }, title ? h('h3', {}, title) : null, ...children); }
-
-async function renderCat() {
-  const panel = $('#setPanel');
-  const id = S.setCat;
-  const P = 'setpanel';
-  const out = [];
-  const head = (t, sub) => { out.push(h('h2', {}, t)); if (sub) out.push(h('p', { class: 'sub' }, sub)); };
-
-  if (id === 'look') {
-    head('Uiterlijk', 'Maak RandomOS helemaal van jou.');
-    const sw = h('div', { class: 'swatches' });
-    for (const [hex, name] of ACCENTS) {
-      const b = h('button', { class: `swatch${S.settings.accent === hex ? ' on' : ''}`, style: { '--c': hex }, title: name, 'data-focus': true, 'data-group': P });
-      b.addEventListener('click', async () => { await saveSettings({ accent: hex }); Sounds.select(); $$('.swatch', sw).forEach((x) => x.classList.toggle('on', x === b)); toast(`Accentkleur: ${name}`, { icon: 'check' }); });
-      sw.append(b);
-    }
-    out.push(group('Accentkleur', sw));
-    out.push(group('Profiel', actionRow('Naam', 'Wordt rechtsboven getoond', null, async () => {
-      const n = await OSK.open({ title: 'Hoe heet je?', value: S.settings.name || $('#profileName').textContent });
-      if (n === null) return;
-      await saveSettings({ name: n.trim() });
-      await loadProfile();
-      renderCat();
-    }, P, S.settings.name || $('#profileName').textContent)));
-    out.push(group('Effecten',
-      toggleRow('Zwevende lichtjes', 'Rustige deeltjes op de achtergrond', S.settings.ambient, (v) => saveSettings({ ambient: v }), P),
-      toggleRow('Opstartanimatie', 'Het RandomOS-logo bij het opstarten', S.settings.intro, (v) => saveSettings({ intro: v }), P),
-      toggleRow('Geluidseffecten', 'Klikjes en tonen in de menu\'s', S.settings.sounds, (v) => saveSettings({ sounds: v }), P),
-      toggleRow('Prestatiemodus', 'Minder effecten (geen vervaging, gloed of lichtjes). Handig op zwakkere laptops.', S.settings.perf, (v) => saveSettings({ perf: v }), P),
-      actionRow('Opstartanimatie bekijken', null, 'sparkle', async () => { document.body.classList.remove('ready'); await playIntro(); document.body.classList.add('ready'); }, P)));
-  }
-
-  if (id === 'wifi') {
-    head('Wifi');
-    const s = S.status || (await nova.sys.status());
-    const list = h('div', {}, h('div', { class: 'row static' }, h('div', { class: 'spinner', style: { width: '22px', height: '22px', borderWidth: '3px' } }), h('div', { class: 'r-main' }, 'Netwerken zoeken…')));
-    out.push(group(null, toggleRow('Wifi', s.wifi.ssid ? `Verbonden met ${s.wifi.ssid}` : 'Niet verbonden', s.wifi.enabled, async (v) => { await nova.sys.wifiRadio(v); await refreshStatus(); renderCat(); }, P)));
-    if (s.wifi.enabled) {
-      out.push(group('Netwerken', list));
-      nova.sys.wifiList().then((nets) => {
-        if (S.setCat !== 'wifi') return;
-        list.innerHTML = '';
-        if (!Array.isArray(nets) || !nets.length) { list.append(h('div', { class: 'row static' }, 'Geen netwerken gevonden')); return; }
-        for (const n of nets) {
-          const bars = h('span', { class: 'bars' }, ...[25, 50, 75].map((t, i) => h('i', { class: n.signal > t - 10 ? 'on' : '', style: { height: `${6 + i * 5}px` } })));
-          const val = h('span', { style: { display: 'flex', alignItems: 'center', gap: '12px' } }, n.active ? h('span', { class: 'ok' }, 'Verbonden') : null, n.secure ? h('span', { class: 'ico lock', style: { width: '16px', height: '16px' } }) : null, bars);
-          list.append(actionRow(n.ssid, n.known && !n.active ? 'Opgeslagen' : null, null, async () => {
-            if (n.active) return;
-            let pw = null;
-            if (n.secure && !n.known) { pw = await OSK.open({ title: `Wachtwoord voor ${n.ssid}`, password: true }); if (pw === null) return; }
-            toast(`Verbinden met ${n.ssid}…`, { icon: 'refresh' });
-            const r = await nova.sys.wifiConnect(n.ssid, pw);
-            if (r && r.ok) { toast(`Verbonden met ${n.ssid}`); await refreshStatus(); renderCat(); } else { Sounds.error(); toast((r && r.error) || 'Verbinden mislukt', { bad: true, icon: 'info' }); }
-          }, P, val));
-        }
-      });
-      out.push(actionRow('Opnieuw zoeken', null, 'refresh', () => renderCat(), P));
-    }
-  }
-
-  if (id === 'bt') {
-    head('Bluetooth', 'Koppel draadloze controllers, koptelefoons en speakers.');
-    const s = S.status || (await nova.sys.status());
-    out.push(group(null, toggleRow('Bluetooth', null, s.bluetooth.enabled, async (v) => { await nova.sys.btPower(v); await refreshStatus(); renderCat(); }, P)));
-    if (s.bluetooth.enabled) {
-      const list = h('div', {});
-      const fill = (devs) => {
-        list.innerHTML = '';
-        if (!Array.isArray(devs) || !devs.length) { list.append(h('div', { class: 'row static' }, 'Nog geen apparaten. Zet je apparaat in koppelmodus en kies "Zoeken".')); return; }
-        for (const d of devs) {
-          list.append(actionRow(d.name, d.connected ? 'Verbonden' : d.paired ? 'Gekoppeld' : 'Nieuw apparaat', 'bt', async () => {
-            if (d.connected) { await nova.sys.btDisconnect(d.mac); toast(`${d.name} losgekoppeld`); }
-            else { toast(`Verbinden met ${d.name}…`, { icon: 'refresh' }); const r = await nova.sys.btConnect(d.mac); r && r.ok ? toast(`${d.name} verbonden`) : toast((r && r.error) || 'Mislukt', { bad: true, icon: 'info' }); }
-            fill(await nova.sys.btDevices());
-          }, P, d.connected ? h('span', { class: 'ok' }, 'Verbonden') : null));
-        }
-      };
-      out.push(group('Apparaten', list));
-      out.push(actionRow('Zoeken naar apparaten', 'Duurt ongeveer 8 seconden', 'refresh', async (row) => {
-        $('.r-title', row).textContent = 'Zoeken…';
-        fill(await nova.sys.btScan());
-        $('.r-title', row).textContent = 'Zoeken naar apparaten';
-      }, P));
-      nova.sys.btDevices().then((d) => S.setCat === 'bt' && fill(d));
-    }
-  }
-
-  if (id === 'sound') {
-    head('Geluid & scherm');
-    const s = await nova.sys.status();
-    if (s.volume.available) out.push(group('Geluid',
-      sliderRow('Volume', s.volume.level, (v) => nova.sys.volume(v), { group: P }),
-      toggleRow('Dempen', null, s.volume.muted, () => nova.sys.mute(), P)));
-    if (s.brightness.available) out.push(group('Scherm', sliderRow('Helderheid', s.brightness.level, (v) => nova.sys.brightness(v), { min: 5, group: P })));
-    if (!s.volume.available && !s.brightness.available) out.push(h('p', { class: 'sub' }, 'Geen geluid of scherm gevonden om te regelen.'));
-  }
-
-  if (id === 'games') {
-    head('Games', `${S.games.length} games gevonden.`);
-    const counts = ['steam', 'epic', 'gog', 'amazon', 'custom'].map((s) => [s, S.games.filter((g) => g.source === s).length]).filter(([, n]) => n);
-    out.push(group('Bronnen', ...counts.map(([s, n]) => h('div', { class: 'row static' }, h('span', { class: `badge ${s}` }, SOURCE_NAMES[s]), h('div', { class: 'r-main' }), h('span', { class: 'r-val' }, `${n} ${n === 1 ? 'game' : 'games'}`)))));
-    out.push(group('Acties',
-      actionRow('Bibliotheek vernieuwen', 'Zoek opnieuw naar geïnstalleerde games', 'refresh', async () => { await loadGames(); rerenderAll(); renderCat(); toast(`${S.games.length} games gevonden`); }, P),
-      actionRow('Steam Big Picture openen', 'Winkel, downloads en Steam-instellingen', 'steam', () => nova.sys.openSteam(), P)));
-    out.push(group('Eigen games toevoegen', h('div', { class: 'row static', style: { display: 'block', lineHeight: 1.6, color: 'var(--text-2)' } },
-      'Ga naar de bureaubladmodus en zet je games in ', h('b', { style: { color: 'var(--text)' } }, '~/.config/randomos/games.json'), '. Epic-, GOG- en Amazon-games uit Heroic verschijnen vanzelf.')));
-  }
-
-  if (id === 'system') {
-    head('Systeem');
-    const i = await nova.sys.info();
-    const dl = h('dl', { class: 'info-grid' });
-    for (const [k, v] of [['Systeem', i.os], ['Processor', i.cpu], ['Graphics', (i.gpu || []).join(', ')], ['Geheugen', i.ram], ['Opslag', i.disk], ['Kernel', i.kernel], ['Image', i.image]]) {
-      if (v) dl.append(h('dt', {}, k), h('dd', {}, v));
-    }
-    out.push(group('Over dit apparaat', dl));
-    out.push(group('Geavanceerd',
-      actionRow('Bureaubladmodus', 'Schakel naar het gewone bureaublad', 'desktop', () => nova.sys.power('desktop'), P),
-      actionRow('Gewone Steam-interface gebruiken', 'Start Game Mode voortaan zonder RandomOS Shell. Terug via het bureaublad.', 'steam', async () => {
-        const ok = await confirmBox('Steam-interface gebruiken?', 'Game Mode start dan met de gewone Steam-interface. Je kunt terug via "RandomOS Shell weer gebruiken" in de bureaubladmodus.', 'Overschakelen');
-        if (ok) nova.sys.power('steam-ui');
-      }, P),
-      actionRow('RandomOS Shell herstarten', null, 'restart', () => nova.sys.power('restart-shell'), P)));
-  }
-
-  if (id === 'about') {
-    head('Over RandomOS');
-    out.push(h('div', { class: 'row static', style: { display: 'flex', gap: '24px', alignItems: 'center', padding: '10px 4px 26px' } },
-      h('img', { class: 'about-mascot', src: 'img/mascot.png', alt: '' }),
-      h('div', {}, h('div', { class: 'display', style: { fontSize: '2rem', fontWeight: 700, letterSpacing: '.08em' } }, 'RandomOS'), h('div', { style: { color: 'var(--text-2)', marginTop: '4px' } }, 'RandomOS Shell 1.0'))));
-    out.push(group(null, h('div', { class: 'row static', style: { display: 'block', lineHeight: 1.7, color: 'var(--text-2)' } },
-      'Een eigen console-OS, gebouwd op Bazzite en Fedora Linux. Games draaien via Steam en Proton; updates komen elke dag automatisch binnen.')));
-    out.push(group('Bediening', h('div', { class: 'row static', style: { display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '12px 18px', alignItems: 'center' } },
-      glyph('a'), 'Kiezen / spelen', glyph('b'), 'Terug', glyph('x'), 'Favoriet maken', glyph('y'), 'Snelmenu',
-      h('span', { style: { display: 'flex', gap: '4px' } }, glyph('lb'), glyph('rb')), 'Tabblad wisselen',
-      glyph('start'), 'Aan/uit-menu', glyph('guide'), 'Naar Home (ingedrukt houden tijdens een game: game stoppen)')));
-  }
-
-  if (S.setCat !== id) return;
-  panel.innerHTML = '';
-  panel.append(...out);
-  panel.scrollTop = 0;
-  if (Focus.current && Focus.current.dataset.group === P && !Focus.current.isConnected) Focus.first(P);
-  updateHints();
-}
-
-function confirmBox(title, text, okLabel) {
-  return new Promise((resolve) => {
-    let modal;
-    const done = (v) => { UI.closeModal(modal); resolve(v); };
-    modal = UI.openModal(h('div', { class: 'sheet power-sheet', style: { maxWidth: '560px' } },
-      h('h2', {}, title), h('p', { style: { color: 'var(--text-2)', lineHeight: 1.6, margin: '0 6px 24px' } }, text),
-      h('div', { style: { display: 'flex', gap: '12px' } },
-        h('button', { class: 'btn primary', 'data-focus': true, onclick: () => done(true) }, okLabel),
-        h('button', { class: 'btn ghost', 'data-focus': true, 'data-autofocus': true, onclick: () => done(false) }, 'Annuleren'))),
-    { onBack: () => done(false) });
-  });
-}
-
 // ================================================================ hints
 function updateHints() {
   const el = $('#hints');
@@ -729,10 +522,11 @@ document.addEventListener('focusin-nova', () => updateHints());
 
 // ================================================================ invoer
 Input.on((a, extra = {}) => {
-  if (a === 'connected') { document.body.dataset.pad = extra.style; refreshGlyphs(); updateHints(); toast(`Controller verbonden`, { icon: 'gamepad' }); return; }
+  if (a === 'any') return;
+  if (a === 'connected') { applyPadStyle(extra.style); updateHints(); toast(`Controller verbonden`, { icon: 'gamepad' }); return; }
   if (a === 'disconnected') { toast('Controller losgekoppeld', { icon: 'gamepad', bad: true }); return; }
   Sounds.unlock();
-  if (Input.lastStyle && extra.source === 'pad' && document.body.dataset.pad !== Input.lastStyle) { document.body.dataset.pad = Input.lastStyle; refreshGlyphs(); }
+  if (extra.source === 'pad' && (!S.settings.pad || S.settings.pad === 'auto') && document.body.dataset.pad !== Input.lastStyle) applyPadStyle(Input.lastStyle);
 
   // Tijdens een game staat de shell op de achtergrond: alleen "Home ingedrukt houden" doet iets
   if (S.game && S.game.phase === 'running' && !document.hasFocus()) {
@@ -752,7 +546,7 @@ Input.on((a, extra = {}) => {
       }
       return;
     case 'a':
-      if (Focus.current) Focus.current.click();
+      if (Focus.current) { Input.rumble(); Focus.current.click(); }
       return;
     case 'b':
       if (top) { Sounds.back(); (top._opts.onBack || (() => UI.closeModal(top)))(); return; }
@@ -790,4 +584,4 @@ function goBack() {
   if (cur && cur.dataset.group !== 'rail') { Sounds.back(); Focus.first('rail'); }
 }
 
-boot();
+window.addEventListener('DOMContentLoaded', boot);

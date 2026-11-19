@@ -27,7 +27,12 @@ if (!window.nova) {
   ].map((g) => ({ installed: true, launch: { type: 'custom', cmd: 'true' }, ...g }));
   const games = [...steam, ...extra];
 
-  let cfg = { accent: '#2aa8e8', sounds: true, ambient: true, intro: true, perf: false, name: '', favorites: ['steam:413150', 'steam:367520'], recent: {} };
+  let cfg = {
+  theme: 'space', bgStyle: 'art', tiles: 'normal', titles: false, text: 'normal',
+  clock12: false, showDate: false, battPct: true, greeting: true, reduceMotion: false,
+  soundStyle: 'soft', uiVolume: 70, pad: 'auto', swapAB: false, navSpeed: 'normal', rumble: true,
+  startTab: 'home', homeRow: 'recent', hidden: [], screensaver: 5, autoSleep: 0, lowBattery: true,
+  accent: '#2aa8e8', sounds: true, ambient: true, intro: true, perf: false, name: '', favorites: ['steam:413150', 'steam:367520'], recent: {} };
   try { cfg = { ...cfg, ...JSON.parse(localStorage.getItem('randomos-demo') || '{}') }; } catch {}
   const saveCfg = () => { try { localStorage.setItem('randomos-demo', JSON.stringify(cfg)); } catch {} };
 
@@ -51,6 +56,7 @@ if (!window.nova) {
       stop: async () => { running = null; gameCb(null); return { ok: true }; },
       state: async () => running,
     },
+    customSounds: async () => ({ dir: '~/.config/randomos/sounds', sounds: {} }),
     profile: async () => ({ name: cfg.name || 'Speler', avatar: null }),
     settings: { get: async () => ({ ...cfg }), set: async (p) => { cfg = { ...cfg, ...p }; saveCfg(); return { ...cfg }; } },
     sys: {

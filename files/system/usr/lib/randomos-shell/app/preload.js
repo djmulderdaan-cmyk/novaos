@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld('nova', {
   },
   profile: call('profile:get'),
   settings: { get: call('settings:get'), set: call('settings:set') },
+  customSounds: call('sounds:custom'),
   sys: {
     status: call('sys:status'),
     info: call('sys:info'),

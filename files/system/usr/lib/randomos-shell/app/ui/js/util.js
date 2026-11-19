@@ -70,23 +70,39 @@ function setAccent(hex) {
   document.documentElement.style.setProperty('--accent-rgb', `${r}, ${g}, ${b}`);
 }
 
-// Controllerknoppen als plaatje: Xbox (A B X Y) of PlayStation (✕ ○ □ △)
-const GLYPHS = {
-  xbox: { a: 'A', b: 'B', x: 'X', y: 'Y', lb: 'LB', rb: 'RB', start: '☰', select: '⧉', guide: '⊙' },
-  ps: { a: '✕', b: '○', x: '□', y: '△', lb: 'L1', rb: 'R1', start: 'OPT', select: 'SHR', guide: 'PS' },
+// Controllerknoppen als plaatje. Toont het label van de FYSIEKE knop die je moet indrukken,
+// dus klopt ook met Nintendo-layout en "A/B wisselen".
+const FACE = {
+  xbox: ['A', 'B', 'X', 'Y'],
+  ps: ['✕', '○', '□', '△'],
+  nintendo: ['B', 'A', 'Y', 'X'],
 };
+const OTHER = {
+  xbox: { lb: 'LB', rb: 'RB', start: '☰', select: '⧉', guide: '⊙' },
+  ps: { lb: 'L1', rb: 'R1', start: 'OPT', select: 'SHR', guide: 'PS' },
+  nintendo: { lb: 'L', rb: 'R', start: '+', select: '−', guide: '⌂' },
+};
+function padStyleNow() { return ['ps', 'nintendo'].includes(document.body.dataset.pad) ? document.body.dataset.pad : 'xbox'; }
+function paintGlyph(el) {
+  const btn = el.dataset.btn;
+  const style = padStyleNow();
+  const faceIdx = { a: 0, b: 1, x: 2, y: 3 }[btn];
+  el.className = 'glyph';
+  if (faceIdx !== undefined) {
+    let idx = faceIdx;
+    if (typeof Input !== 'undefined' && Input.swapAB && idx < 2) idx = 1 - idx;
+    el.textContent = FACE[style][idx];
+    el.classList.add('round', `g-p${idx}`);
+  } else {
+    el.textContent = OTHER[style][btn] || btn;
+  }
+}
 function glyph(btn) {
-  const style = document.body.dataset.pad === 'ps' ? 'ps' : 'xbox';
-  const round = ['a', 'b', 'x', 'y'].includes(btn);
-  return h('span', { class: `glyph g-${btn}${round ? ' round' : ''}` }, GLYPHS[style][btn]);
+  const el = h('span', { 'data-btn': btn });
+  paintGlyph(el);
+  return el;
 }
-function refreshGlyphs() {
-  const style = document.body.dataset.pad === 'ps' ? 'ps' : 'xbox';
-  $$('.glyph').forEach((g) => {
-    const b = [...g.classList].find((c) => c.startsWith('g-'));
-    if (b) g.textContent = GLYPHS[style][b.slice(2)];
-  });
-}
+function refreshGlyphs() { $$('[data-btn]').forEach(paintGlyph); }
 
 function toast(text, { icon = 'check', bad = false, ms = 3200 } = {}) {
   const t = h('div', { class: `toast${bad ? ' bad' : ''}` }, h('span', { class: `ico ${icon}` }), h('span', {}, text));

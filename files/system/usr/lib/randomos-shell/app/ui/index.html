@@ -31,11 +31,11 @@
         <svg viewBox="0 0 120 120" class="brand-ring"><circle cx="60" cy="60" r="44"/><g transform="translate(94 26) rotate(18)"><rect x="-13" y="-18" width="26" height="36" rx="5" fill="#fff"/><path d="M0 -9 L7 0 L0 9 L-7 0 Z" fill="#e5413a"/></g></svg>
       </div>
       <nav id="tabs">
-        <span class="glyph g-lb"></span>
+        <span class="glyph" data-btn="lb"></span>
         <button class="tab" data-focus data-group="tabs" data-tab="home">Home</button>
         <button class="tab" data-focus data-group="tabs" data-tab="library">Bibliotheek</button>
         <button class="tab" data-focus data-group="tabs" data-tab="settings">Instellingen</button>
-        <span class="glyph g-rb"></span>
+        <span class="glyph" data-btn="rb"></span>
       </nav>
       <div class="status">
         <div class="profile" id="profile"><div class="avatar" id="avatar"></div><span id="profileName"></span></div>
@@ -50,6 +50,7 @@
       <!-- HOME -->
       <section class="screen" id="screen-home">
         <div class="hero" id="hero">
+          <div class="hero-greet" id="greeting"></div>
           <div class="hero-logo" id="heroLogo"></div>
           <div class="hero-meta" id="heroMeta"></div>
           <div class="hero-actions">
@@ -97,6 +98,9 @@
   <script src="js/focus.js"></script>
   <script src="js/ambient.js"></script>
   <script src="js/osk.js"></script>
+  <script src="js/components.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/extras.js"></script>
 </body>
 </html>
