@@ -435,8 +435,9 @@ function showLaunch(g, phase) {
   const status = h('p', { id: 'launchStatus' }, t('Wordt gestart…'));
   const box = h('div', { class: 'launch-box' }, cover, h('h2', {}, g.title), status, h('div', { class: 'spinner', id: 'launchSpin' }),
     h('div', { class: 'launch-actions' },
-      h('button', { class: 'btn ghost', 'data-focus': true, onclick: stopGame }, h('span', { class: 'ico stop' }), t('Stoppen'))));
-  launchModal = UI.openModal(box, { className: 'launch', sticky: true, onBack: () => {} });
+      h('button', { class: 'btn primary', 'data-focus': true, id: 'resumeBtn', style: { display: 'none' }, onclick: () => resumeGame() }, h('span', { class: 'ico play' }), t('Hervatten')),
+      h('button', { class: 'btn ghost', 'data-focus': true, onclick: stopGame }, h('span', { class: 'ico stop' }), t('Game stoppen'))));
+  launchModal = UI.openModal(box, { className: 'launch', sticky: true, onBack: () => { if (S.overGame) resumeGame(); } });
   setBackground(g.art.hero);
   updateLaunch(phase);
 }
@@ -444,8 +445,29 @@ function showLaunch(g, phase) {
 function updateLaunch(phase) {
   const st = $('#launchStatus'), sp = $('#launchSpin');
   if (!st) return;
-  st.textContent = phase === 'running' ? t('Speelt nu. Houd de Home-knop ingedrukt om te stoppen.') : t('Wordt gestart…');
+  st.textContent = phase === 'running' ? t('Speelt nu. Druk kort op de Home-knop om te wisselen, houd hem ingedrukt om te stoppen.') : t('Wordt gestart…');
   sp.style.display = phase === 'running' ? 'none' : '';
+}
+
+// Kort op Home tijdens een game: RandomOS tonen, game blijft draaien
+async function showShellDuringGame() {
+  S.overGame = true;
+  setSleeping(false);
+  await nova.games.showShell();
+  const g = S.games.find((x) => x.id === (S.game && S.game.id));
+  if (!launchModal && g) showLaunch(g, 'running');
+  updateLaunch('running');
+  const rb = $('#resumeBtn');
+  if (rb) { rb.style.display = ''; Focus.set(rb, { silent: true }); }
+  Sounds.open();
+}
+
+async function resumeGame() {
+  S.overGame = false;
+  const rb = $('#resumeBtn');
+  if (rb) rb.style.display = 'none';
+  Sounds.select();
+  await nova.games.resume();
 }
 
 function closeLaunch() { if (launchModal) { UI.closeModal(launchModal); launchModal = null; } }
@@ -468,6 +490,7 @@ function onGameState(st) {
   }
   const had = S.game;
   S.game = null;
+  S.overGame = false;
   setSleeping(false);
   closeLaunch();
   applySettings();
@@ -557,6 +580,12 @@ function handleAction(a, extra = {}) {
   // Tijdens een game staat de shell op de achtergrond: alleen "Home ingedrukt houden" doet iets
   if (S.game && S.game.phase === 'running' && !document.hasFocus()) {
     if (a === 'guide-long') stopGame();
+    else if (a === 'guide-up') showShellDuringGame();
+    return;
+  }
+  if (a === 'guide-up') {
+    // shell staat over een draaiende game: kort Home = terug naar de game
+    if (S.game && S.game.phase === 'running' && S.overGame) resumeGame();
     return;
   }
   if (S.introActive) { if (S.skipIntro) S.skipIntro(); return; }
@@ -597,6 +626,7 @@ function handleAction(a, extra = {}) {
       if (!top) openPower();
       return;
     case 'guide':
+      if (S.overGame) return; // afgehandeld bij loslaten (guide-up)
       if (S.steamFront) { S.steamFront = false; nova.sys.focusShell(); return; }
       UI.closeAll();
       if (S.tab !== 'home') switchTab('home'); else Focus.first('rail');

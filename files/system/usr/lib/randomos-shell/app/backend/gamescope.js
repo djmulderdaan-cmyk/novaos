@@ -13,7 +13,8 @@ const DISPLAYS = [...new Set([process.env.DISPLAY || ':0', ':0', ':1'])];
 let active = false;
 let shellXid = null;
 let tagTimer = null;
-let mode = 'shell'; // 'shell' | 'steam' | 'game'
+let mode = 'shell'; // 'shell' | 'steam' | 'game' | 'overlay'
+let lastGame = null; // { id, withSteam }
 
 function run(cmd, args, display = process.env.DISPLAY) {
   return new Promise((resolve) => {
@@ -63,6 +64,7 @@ function focusGame(appid, pidsFn, { withSteam = false } = {}) {
   mode = 'game';
   if (!active) return;
   const id = Number(appid);
+  lastGame = { id, withSteam };
   setBaselayer(withSteam ? [id, STEAM_APPID, SHELL_APPID] : [id, SHELL_APPID]);
   const tagged = new Set();
   const tick = async () => {
@@ -83,6 +85,21 @@ function focusGame(appid, pidsFn, { withSteam = false } = {}) {
   tagTimer = setInterval(tick, 1500);
 }
 
+// Shell tonen terwijl de game op de achtergrond blijft draaien
+async function showShellOverGame() {
+  if (!active || !lastGame) return;
+  mode = 'overlay';
+  if (shellXid) await tagWindow(shellXid, SHELL_APPID);
+  await setBaselayer([SHELL_APPID, lastGame.id]);
+}
+
+// Terug naar de game (zelfde game, zelfde volgorde als bij het starten)
+async function resumeGame() {
+  if (!active || !lastGame) return;
+  mode = 'game';
+  await setBaselayer(lastGame.withSteam ? [lastGame.id, STEAM_APPID, SHELL_APPID] : [lastGame.id, SHELL_APPID]);
+}
+
 // Bewaker: in shell-modus zorgen dat gamescope de shell nog steeds vooraan heeft
 async function ensure() {
   if (!active || mode !== 'shell' || !shellXid) return;
@@ -98,4 +115,4 @@ function stopTagging() {
   tagTimer = null;
 }
 
-module.exports = { init, focusShell, focusSteam, focusGame, ensure, SHELL_APPID, STEAM_APPID, get active() { return active; }, get mode() { return mode; } };
+module.exports = { init, focusShell, focusSteam, focusGame, showShellOverGame, resumeGame, ensure, SHELL_APPID, STEAM_APPID, get active() { return active; }, get mode() { return mode; } };

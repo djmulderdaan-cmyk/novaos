@@ -78,7 +78,12 @@ const Input = (() => {
       if (active.size) { document.body.classList.remove('mouse'); api.lastStyle = padStyle(p.id); }
     }
     for (const a of active) press(a, now);
-    for (const a of Object.keys(held)) if (!active.has(a)) delete held[a];
+    for (const a of Object.keys(held)) {
+      if (active.has(a)) continue;
+      // Home kort ingedrukt (niet lang): apart signaal bij loslaten
+      if (a === 'guide' && !held[a].long) emit('guide-up', { source: 'pad' });
+      delete held[a];
+    }
     schedule();
   }
   // Tijdens een game: 8x per seconde in plaats van elke frame

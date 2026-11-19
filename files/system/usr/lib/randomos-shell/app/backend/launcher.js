@@ -341,10 +341,22 @@ function watchSteamFront() {
   }, 1500);
 }
 
+// Tijdens een game: naar RandomOS (game blijft draaien) en weer terug
+function showShellOverGame() {
+  if (!current) return { error: 'Er draait geen game' };
+  gamescope.showShellOverGame();
+  return { ok: true };
+}
+function resumeGame() {
+  if (!current) return { error: 'Er draait geen game' };
+  gamescope.resumeGame();
+  return { ok: true };
+}
+
 function focusShell() {
   clearInterval(loginTimer);
   gamescope.focusShell();
   return { ok: true };
 }
 
-module.exports = { watchdog, setEmitter, setSteamEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture, steamStatus, steamLogin, focusShell };
+module.exports = { showShellOverGame, resumeGame, watchdog, setEmitter, setSteamEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture, steamStatus, steamLogin, focusShell };

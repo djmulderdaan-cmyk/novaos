@@ -95,6 +95,8 @@ handle('games:list', () => games.listAll());
 // De interface stuurt alleen een id; het commando komt altijd uit onze eigen gamelijst
 handle('games:launch', (id) => launcher.launch(games.listAll().find((g) => g.id === (id && id.id ? id.id : id))));
 handle('games:stop', () => launcher.stop());
+handle('games:show-shell', () => launcher.showShellOverGame());
+handle('games:resume', () => launcher.resumeGame());
 handle('games:state', () => launcher.state());
 handle('profile:get', () => games.profile());
 

@@ -9,6 +9,8 @@ contextBridge.exposeInMainWorld('nova', {
     list: call('games:list'),
     launch: call('games:launch'),
     stop: call('games:stop'),
+    showShell: call('games:show-shell'),
+    resume: call('games:resume'),
     state: call('games:state'),
   },
   profile: call('profile:get'),

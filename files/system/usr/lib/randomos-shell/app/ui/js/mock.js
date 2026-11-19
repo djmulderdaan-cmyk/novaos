@@ -54,6 +54,8 @@ if (!window.nova) {
         return { ok: true };
       },
       stop: async () => { running = null; gameCb(null); return { ok: true }; },
+      showShell: async () => ({ ok: true }),
+      resume: async () => ({ ok: true }),
       state: async () => running,
     },
     customSounds: async () => ({ dir: '~/.config/randomos/sounds', sounds: {} }),
