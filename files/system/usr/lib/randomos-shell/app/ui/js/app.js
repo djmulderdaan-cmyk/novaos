@@ -684,4 +684,16 @@ function goBack() {
   if (cur && cur.dataset.group !== 'rail') { Sounds.back(); Focus.first('rail'); }
 }
 
-window.addEventListener('DOMContentLoaded', boot);
+window.addEventListener('DOMContentLoaded', () => {
+  boot().catch((e) => { console.error('Opstarten mislukt:', e && e.stack ? e.stack : e); forceReady(); });
+  // Vangnet: na 12 s altijd het menu tonen, ook als iets bleef hangen
+  setTimeout(() => { if (!document.body.classList.contains('ready')) { console.error('Opstarten duurde te lang, menu toch geopend'); forceReady(); } }, 12000);
+});
+
+function forceReady() {
+  try { if (S.skipIntro) S.skipIntro(); } catch {}
+  $('#intro').classList.add('done');
+  document.body.classList.add('ready');
+  try { if (!S.games.length) renderHome(); } catch {}
+  try { Focus.first('rail'); updateHints(); } catch {}
+}

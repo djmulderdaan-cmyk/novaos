@@ -132,6 +132,67 @@ function listSteam() {
   return games;
 }
 
+// ---------------------------------------------------------------- niet-Steam-games
+// Steam bewaart "Een niet-Steam-game toevoegen" in userdata/<id>/config/shortcuts.vdf (binair VDF)
+function parseBinaryVdf(buf) {
+  let i = 0;
+  const readStr = () => { const end = buf.indexOf(0, i); const str = buf.toString('utf8', i, end); i = end + 1; return str; };
+  const readMap = () => {
+    const obj = {};
+    while (i < buf.length) {
+      const type = buf[i++];
+      if (type === 0x08) return obj;
+      const key = readStr();
+      if (type === 0x00) obj[key] = readMap();
+      else if (type === 0x01) obj[key] = readStr();
+      else if (type === 0x02) { obj[key] = buf.readUInt32LE(i); i += 4; }
+      else if (type === 0x07) { obj[key] = buf.readBigUInt64LE(i); i += 8; }
+      else return obj; // onbekend type: stoppen
+    }
+    return obj;
+  };
+  return readMap();
+}
+
+function listSteamShortcuts() {
+  const root = steamRoot();
+  if (!root) return [];
+  let users;
+  try { users = fs.readdirSync(path.join(root, 'userdata')).filter((u) => /^\d+$/.test(u)); } catch { return []; }
+  const out = [];
+  const seen = new Set();
+  for (const u of users) {
+    const file = path.join(root, 'userdata', u, 'config', 'shortcuts.vdf');
+    let data;
+    try { data = parseBinaryVdf(fs.readFileSync(file)); } catch { continue; }
+    const list = data.shortcuts || data.Shortcuts || {};
+    for (const sc of Object.values(list)) {
+      if (!sc || typeof sc !== 'object') continue;
+      const name = sc.AppName || sc.appname || sc.appName;
+      const appid = Number(sc.appid ?? sc.AppId ?? 0) >>> 0;
+      if (!name || !appid || seen.has(appid)) continue;
+      seen.add(appid);
+      const gameid = ((BigInt(appid) << 32n) | 0x02000000n).toString();
+      const grid = path.join(root, 'userdata', u, 'config', 'grid');
+      const art = (names) => names.map((n) => path.join(grid, n)).filter(exists).map(fileUrl);
+      const exts = (base) => ['png', 'jpg', 'jpeg', 'webp'].map((e) => `${base}.${e}`);
+      const icon = sc.icon && exists(sc.icon.replace(/^"|"$/g, '')) ? [fileUrl(sc.icon.replace(/^"|"$/g, ''))] : [];
+      out.push({
+        id: `steamshortcut:${appid}`,
+        appid: String(appid),
+        title: name,
+        source: 'custom',
+        installed: true,
+        lastPlayed: Number(sc.LastPlayTime || 0) * 1000,
+        playtime: 0,
+        art: { cover: art(exts(`${appid}p`)), hero: art(exts(`${appid}_hero`)), logo: art(exts(`${appid}_logo`)), header: [...art(exts(String(appid))), ...icon] },
+        launch: { type: 'steamshortcut', appid: String(appid), gameid },
+      });
+    }
+  }
+  return out;
+}
+
 function listHeroic() {
   const games = [];
   for (const { dir, flatpak } of HEROIC_ROOTS) {
@@ -191,7 +252,7 @@ function listCustom() {
 
 function listAll() {
   const s = settings.load();
-  const all = [...listSteam(), ...listHeroic(), ...listCustom()];
+  const all = [...listSteam(), ...listSteamShortcuts(), ...listHeroic(), ...listCustom()];
   for (const g of all) {
     if (s.recent[g.id]) g.lastPlayed = Math.max(g.lastPlayed, s.recent[g.id]);
     g.favorite = s.favorites.includes(g.id);

@@ -9,14 +9,30 @@ LOG="$LOG_DIR/shell.log"
 mkdir -p "$LOG_DIR"
 if [ -f "$LOG" ] && [ "$(stat -c%s "$LOG")" -gt 1048576 ]; then mv -f "$LOG" "$LOG.old"; fi
 
+# Crasht de shell? Eerst opnieuw proberen (2e keer zonder GPU-versnelling), pas na 3 crashes binnen
+# 3 minuten terugvallen op Steam.
+failures=0
+first_failure=0
+extra_flags=()
 while true; do
-  echo "=== $(date '+%F %T') RandomOS Shell start ===" >>"$LOG"
+  echo "=== $(date '+%F %T') RandomOS Shell start ${extra_flags[*]} ===" >>"$LOG"
   started=$SECONDS
-  "$APP/electron/electron" "$APP/app" --ozone-platform=x11 >>"$LOG" 2>&1
+  "$APP/electron/electron" "$APP/app" --ozone-platform=x11 "${extra_flags[@]}" >>"$LOG" 2>&1
   code=$?
   echo "=== gestopt met code $code na $((SECONDS - started))s ===" >>"$LOG"
   [ "$code" -eq 42 ] && continue   # "Shell herstarten" uit Instellingen
-  break
+  case "$code" in 0|130|143) break ;; esac
+
+  # crash
+  if [ "$failures" -eq 0 ] || [ $((SECONDS - first_failure)) -gt 180 ]; then
+    failures=0
+    first_failure=$SECONDS
+  fi
+  failures=$((failures + 1))
+  if [ "$failures" -ge 3 ]; then break; fi
+  if [ "$failures" -ge 2 ]; then extra_flags=(--disable-gpu); fi
+  echo "Shell gecrasht ($failures), opnieuw proberen..." >>"$LOG"
+  sleep 2
 done
 
 # Steam (dat zonder interface op de achtergrond draait) netjes afsluiten

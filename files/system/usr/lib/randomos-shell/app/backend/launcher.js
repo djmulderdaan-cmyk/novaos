@@ -69,7 +69,12 @@ function launch(game) {
   current = { game, phase: 'launching', startedAt: Date.now(), sawRunning: false, child: null };
   emit(publicState());
 
-  if (l.type === 'steam') {
+  if (l.type === 'steamshortcut') {
+    // niet-Steam-game uit Steam (bv. een .exe met Proton): via Steam starten
+    ensureSteam();
+    spawn('steam', [`steam://rungameid/${l.gameid}`], { detached: true, stdio: 'ignore' }).unref();
+    gamescope.focusGame(l.appid, () => [...processesWithEnv('SteamGameId', l.gameid), ...processesWithEnv('SteamAppId', l.appid)]);
+  } else if (l.type === 'steam') {
     ensureSteam();
     spawn('steam', [`steam://rungameid/${l.appid}`], { detached: true, stdio: 'ignore' }).unref();
     // game-vensters herkennen aan SteamAppId en vooraan zetten
@@ -100,7 +105,17 @@ function startPolling() {
   pollTimer = setInterval(() => {
     if (!current) return clearInterval(pollTimer);
     const age = Date.now() - current.startedAt;
-    if (current.game.launch.type === 'steam') {
+    if (current.game.launch.type === 'steamshortcut') {
+      const l = current.game.launch;
+      const alive = processesWithEnv('SteamGameId', l.gameid).length > 0 || runningSteamAppId() === l.appid;
+      if (alive) {
+        if (current.phase !== 'running' || !current.sawRunning) update({ phase: 'running', sawRunning: true });
+      } else if (current.sawRunning) {
+        finish();
+      } else if (age > 120000) {
+        finish('De game is niet gestart (Steam reageerde niet)');
+      }
+    } else if (current.game.launch.type === 'steam') {
       const running = runningSteamAppId();
       if (running === current.game.launch.appid) {
         if (current.phase !== 'running') update({ phase: 'running', sawRunning: true });
@@ -154,7 +169,9 @@ function processesWithEnv(key, value) {
 function stop() {
   if (!current) return { ok: true };
   const l = current.game.launch;
-  const pids = l.type === 'steam' ? processesWithEnv('SteamAppId', l.appid) : gamePids(current.game.id);
+  const pids = l.type === 'steam' ? processesWithEnv('SteamAppId', l.appid)
+    : l.type === 'steamshortcut' ? processesWithEnv('SteamGameId', l.gameid)
+    : gamePids(current.game.id);
   for (const pid of pids) { try { process.kill(pid, 'SIGTERM'); } catch {} }
   setTimeout(() => { for (const pid of pids) { try { process.kill(pid, 'SIGKILL'); } catch {} } }, 5000);
   if (current.child && current.child.pid) { try { process.kill(-current.child.pid, 'SIGTERM'); } catch {} }
@@ -166,11 +183,12 @@ function stop() {
 function onShellBlur() {
   if (!current || current.phase !== 'launching') return;
   // Steam: alleen registry.vdf bepaalt of de game echt draait (een "Voorbereiden"-venster telt niet)
-  update(current.game.launch.type === 'steam' ? { phase: 'running' } : { phase: 'running', sawRunning: true, blurredAt: Date.now() });
+  const viaSteam = ['steam', 'steamshortcut'].includes(current.game.launch.type);
+  update(viaSteam ? { phase: 'running' } : { phase: 'running', sawRunning: true, blurredAt: Date.now() });
 }
 function onShellFocus() {
   // Steam-games worden betrouwbaar via RunningAppID gevolgd; voor andere games is focus-terug een goed teken
-  if (current && current.sawRunning && current.game.launch.type !== 'steam' && Date.now() - current.startedAt > 5000) {
+  if (current && current.sawRunning && !['steam', 'steamshortcut'].includes(current.game.launch.type) && Date.now() - current.startedAt > 5000) {
     if (!gamePids(current.game.id).length) finish();
   }
 }
@@ -219,10 +237,26 @@ function steamLogin() {
   return { ok: true };
 }
 
+// Elke 15 s: Steam moet draaien (wordt gestopt als je het inlogvenster sluit) en de focus moet kloppen
+let steamDownSince = 0;
+function watchdog() {
+  if (!steamRunning()) {
+    if (!steamDownSince) steamDownSince = Date.now();
+    // even wachten: Steam herstart zichzelf soms bij updates
+    if (Date.now() - steamDownSince > 20000) {
+      console.log('[watchdog] Steam draait niet, opnieuw starten');
+      steamDownSince = 0;
+      ensureSteam();
+      if (gamescope.mode === 'steam') gamescope.focusShell();
+    }
+  } else steamDownSince = 0;
+  if (!current) gamescope.ensure();
+}
+
 function focusShell() {
   clearInterval(loginTimer);
   gamescope.focusShell();
   return { ok: true };
 }
 
-module.exports = { setEmitter, setSteamEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture, steamStatus, steamLogin, focusShell };
+module.exports = { watchdog, setEmitter, setSteamEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture, steamStatus, steamLogin, focusShell };

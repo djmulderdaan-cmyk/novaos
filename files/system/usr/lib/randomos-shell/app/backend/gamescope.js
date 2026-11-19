@@ -13,6 +13,7 @@ const DISPLAYS = [...new Set([process.env.DISPLAY || ':0', ':0', ':1'])];
 let active = false;
 let shellXid = null;
 let tagTimer = null;
+let mode = 'shell'; // 'shell' | 'steam' | 'game'
 
 function run(cmd, args, display = process.env.DISPLAY) {
   return new Promise((resolve) => {
@@ -42,6 +43,7 @@ async function init(xid) {
 
 // Shell weer vooraan
 async function focusShell() {
+  mode = 'shell';
   stopTagging();
   if (shellXid) await tagWindow(shellXid, SHELL_APPID);
   await setBaselayer([SHELL_APPID]);
@@ -49,12 +51,14 @@ async function focusShell() {
 
 // Steam-vensters (inlogscherm, Big Picture) vooraan, shell als terugval
 async function focusSteam() {
+  mode = 'steam';
   await setBaselayer([STEAM_APPID, SHELL_APPID]);
 }
 
 // Game vooraan. pidsFn() geeft de processen van de game; hun vensters krijgen het app-nummer.
 function focusGame(appid, pidsFn) {
   stopTagging();
+  mode = 'game';
   if (!active) return;
   const id = Number(appid);
   setBaselayer([id, SHELL_APPID]);
@@ -77,9 +81,19 @@ function focusGame(appid, pidsFn) {
   tagTimer = setInterval(tick, 1500);
 }
 
+// Bewaker: in shell-modus zorgen dat gamescope de shell nog steeds vooraan heeft
+async function ensure() {
+  if (!active || mode !== 'shell' || !shellXid) return;
+  const out = await run('xprop', ['-root', 'GAMESCOPECTRL_BASELAYER_APPID']);
+  if (!out || !new RegExp(`= ${SHELL_APPID}\\s*$`).test(out.trim())) {
+    console.log('[gamescope] focus hersteld');
+    await focusShell();
+  }
+}
+
 function stopTagging() {
   if (tagTimer) clearInterval(tagTimer);
   tagTimer = null;
 }
 
-module.exports = { init, focusShell, focusSteam, focusGame, SHELL_APPID, STEAM_APPID, get active() { return active; } };
+module.exports = { init, focusShell, focusSteam, focusGame, ensure, SHELL_APPID, STEAM_APPID, get active() { return active; }, get mode() { return mode; } };

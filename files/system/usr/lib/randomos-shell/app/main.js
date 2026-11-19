@@ -11,6 +11,11 @@ app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
 
 let win = null;
+let rendererCrashes = [];
+
+// Nooit stilletjes omvallen: fouten in het hoofdproces alleen loggen
+process.on('uncaughtException', (e) => console.error('[main] onverwachte fout:', e && e.stack ? e.stack : e));
+process.on('unhandledRejection', (e) => console.error('[main] onafgehandelde belofte:', e && e.stack ? e.stack : e));
 
 function createWindow() {
   win = new BrowserWindow({
@@ -45,7 +50,19 @@ function createWindow() {
     const level = e.level != null ? e.level : '';
     if (level === 'warning' || level === 'error' || level === 2 || level === 3) console.log(`[ui ${level}] ${e.message} (${e.sourceId || ''}:${e.lineNumber || ''})`);
   });
-  win.webContents.on('render-process-gone', (_e, d) => console.log('[ui] renderer weg:', d && d.reason));
+  // Interface gecrasht? Herladen. Te vaak achter elkaar -> shell stoppen zodat het startscript hem opnieuw start
+  win.webContents.on('render-process-gone', (_e, d) => {
+    console.log('[ui] renderer weg:', d && d.reason);
+    if (d && d.reason === 'clean-exit') return;
+    const now = Date.now();
+    rendererCrashes = rendererCrashes.filter((t) => now - t < 60000).concat(now);
+    if (rendererCrashes.length > 3) { console.log('[ui] te vaak gecrasht, shell herstarten'); app.exit(1); return; }
+    setTimeout(() => { if (win && !win.isDestroyed()) win.webContents.reload(); }, 800);
+  });
+  win.webContents.on('unresponsive', () => {
+    console.log('[ui] reageert niet, herladen over 5 s');
+    setTimeout(() => { if (win && !win.isDestroyed() && win.webContents.isCrashed && !win.webContents.isCrashed()) win.webContents.forcefullyCrashRenderer(); }, 5000);
+  });
 
   // Externe links nooit in de shell openen
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -103,9 +120,15 @@ handle('sys:steam-status', () => launcher.steamStatus());
 handle('sys:steam-login', () => launcher.steamLogin());
 handle('sys:focus-shell', () => launcher.focusShell());
 
+app.on('child-process-gone', (_e, d) => console.log('[main] hulpproces weg:', d && d.type, d && d.reason, d && d.exitCode));
+
 app.whenReady().then(() => {
   launcher.ensureSteam();
   createWindow();
+  // Bewakers: Steam moet draaien, en gamescope moet het juiste venster vooraan houden
+  setInterval(() => {
+    try { launcher.watchdog(); } catch (e) { console.error('[watchdog]', e); }
+  }, 15000);
 });
 
 app.on('window-all-closed', () => app.quit());
