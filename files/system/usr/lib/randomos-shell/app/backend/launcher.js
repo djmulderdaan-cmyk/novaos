@@ -110,12 +110,12 @@ function launch(game) {
     // niet-Steam-game uit Steam (bv. een .exe met Proton): via Steam starten
     ensureSteam();
     spawn('steam', [`steam://rungameid/${l.gameid}`], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
-    gamescope.focusGame(l.appid, () => [...processesWithEnv('SteamGameId', l.gameid), ...processesWithEnv('SteamAppId', l.appid)]);
+    gamescope.focusGame(l.appid, () => [...processesWithEnv('SteamGameId', l.gameid), ...processesWithEnv('SteamAppId', l.appid)], { withSteam: true });
   } else if (l.type === 'steam') {
     ensureSteam();
     spawn('steam', [`steam://rungameid/${l.appid}`], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
     // game-vensters herkennen aan SteamAppId en vooraan zetten
-    gamescope.focusGame(l.appid, () => processesWithEnv('SteamAppId', l.appid));
+    gamescope.focusGame(l.appid, () => processesWithEnv('SteamAppId', l.appid), { withSteam: true });
   } else {
     const env = { ...process.env, SteamGameId: fakeAppId(game.id), SteamAppId: fakeAppId(game.id), RANDOMOS_GAME: game.id };
     let child;

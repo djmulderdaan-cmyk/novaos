@@ -56,12 +56,14 @@ async function focusSteam() {
 }
 
 // Game vooraan. pidsFn() geeft de processen van de game; hun vensters krijgen het app-nummer.
-function focusGame(appid, pidsFn) {
+// withSteam: Steam-vensters (voorwaarden, updates, cloud-saves) mogen tijdens het starten zichtbaar zijn;
+// zodra het game-venster er is, staat de game vooraan (eerste in de lijst).
+function focusGame(appid, pidsFn, { withSteam = false } = {}) {
   stopTagging();
   mode = 'game';
   if (!active) return;
   const id = Number(appid);
-  setBaselayer([id, SHELL_APPID]);
+  setBaselayer(withSteam ? [id, STEAM_APPID, SHELL_APPID] : [id, SHELL_APPID]);
   const tagged = new Set();
   const tick = async () => {
     for (const pid of pidsFn()) {
