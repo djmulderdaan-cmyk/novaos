@@ -20,7 +20,9 @@ function sliderRow(title, value, onChange, { step = 5, min = 0, max = 100, group
     h('div', { class: 'r-main', style: { flex: '0 0 auto', minWidth: '7.5em' } }, h('div', { class: 'r-title' }, title), desc ? h('div', { class: 'r-desc' }, desc) : null),
     h('div', { class: 'slider' }, track, num));
   row.addEventListener('adjust', (e) => { const nv = Math.max(min, Math.min(max, v + e.detail * step)); if (nv !== v) { v = nv; paint(); Sounds.tick(); commit(); } });
-  track.addEventListener('click', (e) => { const r = track.getBoundingClientRect(); v = Math.round(((e.clientX - r.left) / r.width) * (max - min) / step) * step + min; v = Math.max(min, Math.min(max, v)); paint(); commit(); });
+  const fromPointer = (e) => { const r = track.getBoundingClientRect(); v = Math.round(((e.clientX - r.left) / r.width) * (max - min) / step) * step + min; v = Math.max(min, Math.min(max, v)); paint(); commit(); };
+  track.addEventListener('pointerdown', (e) => { track.setPointerCapture(e.pointerId); fromPointer(e); });
+  track.addEventListener('pointermove', (e) => { if (track.hasPointerCapture(e.pointerId)) fromPointer(e); });
   paint();
   return row;
 }
@@ -73,7 +75,7 @@ function confirmBox(title, text, okLabel) {
       h('h2', {}, title), h('p', { style: { color: 'var(--text-2)', lineHeight: 1.6, margin: '0 6px 24px' } }, text),
       h('div', { style: { display: 'flex', gap: '12px' } },
         h('button', { class: 'btn primary', 'data-focus': true, onclick: () => done(true) }, okLabel),
-        h('button', { class: 'btn ghost', 'data-focus': true, 'data-autofocus': true, onclick: () => done(false) }, 'Annuleren'))),
+        h('button', { class: 'btn ghost', 'data-focus': true, 'data-autofocus': true, onclick: () => done(false) }, t('Annuleren')))),
     { onBack: () => done(false) });
   });
 }

@@ -26,21 +26,22 @@ function hashHue(str) {
 function relTime(ms) {
   if (!ms) return null;
   const d = Math.floor((Date.now() - ms) / 86400000);
-  if (d <= 0) return 'Vandaag gespeeld';
-  if (d === 1) return 'Gisteren gespeeld';
-  if (d < 7) return `${d} dagen geleden`;
-  if (d < 30) return `${Math.floor(d / 7)} ${Math.floor(d / 7) === 1 ? 'week' : 'weken'} geleden`;
-  return new Date(ms).toLocaleDateString('nl-NL', { day: 'numeric', month: 'long', year: 'numeric' });
+  if (d <= 0) return t('Vandaag gespeeld');
+  if (d === 1) return t('Gisteren gespeeld');
+  if (d < 7) return t('{n} dagen geleden', { n: d });
+  if (d < 30) return Math.floor(d / 7) === 1 ? t('1 week geleden') : t('{n} weken geleden', { n: Math.floor(d / 7) });
+  return new Date(ms).toLocaleDateString(I18N.locale, { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function playtimeText(min) {
   if (!min) return null;
-  if (min < 60) return `${min} min gespeeld`;
+  if (min < 60) return t('{n} min gespeeld', { n: min });
   const hrs = min / 60;
-  return `${hrs < 10 ? hrs.toFixed(1).replace('.', ',') : Math.round(hrs)} uur gespeeld`;
+  const n = hrs < 10 ? hrs.toLocaleString(I18N.locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : Math.round(hrs);
+  return t('{n} uur gespeeld', { n });
 }
 
-const SOURCE_NAMES = { steam: 'Steam', epic: 'Epic', gog: 'GOG', amazon: 'Amazon', custom: 'Eigen' };
+const SOURCE_NAMES = { steam: 'Steam', epic: 'Epic', gog: 'GOG', amazon: 'Amazon', get custom() { return t('Eigen'); } };
 
 // Laadt het eerste plaatje dat werkt uit een lijst URLs
 function loadArt(img, urls, onFail) {
@@ -82,12 +83,18 @@ const OTHER = {
   ps: { lb: 'L1', rb: 'R1', start: 'OPT', select: 'SHR', guide: 'PS' },
   nintendo: { lb: 'L', rb: 'R', start: '+', select: '−', guide: '⌂' },
 };
+const KEYCAPS = { a: 'Enter', b: 'Esc', x: 'F', y: 'Y', lb: 'Q', rb: 'E', start: 'M', select: 'Tab', guide: 'Home' };
 function padStyleNow() { return ['ps', 'nintendo'].includes(document.body.dataset.pad) ? document.body.dataset.pad : 'xbox'; }
 function paintGlyph(el) {
   const btn = el.dataset.btn;
   const style = padStyleNow();
   const faceIdx = { a: 0, b: 1, x: 2, y: 3 }[btn];
   el.className = 'glyph';
+  if (document.body.dataset.input === 'kb' && KEYCAPS[btn]) {
+    el.textContent = KEYCAPS[btn];
+    el.classList.add('kc');
+    return;
+  }
   if (faceIdx !== undefined) {
     let idx = faceIdx;
     if (typeof Input !== 'undefined' && Input.swapAB && idx < 2) idx = 1 - idx;

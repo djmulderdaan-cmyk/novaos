@@ -5,7 +5,7 @@ function updateGreeting() {
   const el = $('#greeting');
   if (!el) return;
   const hr = new Date().getHours();
-  const part = hr < 6 ? 'Goedenacht' : hr < 12 ? 'Goedemorgen' : hr < 18 ? 'Goedemiddag' : 'Goedenavond';
+  const part = t(hr < 6 ? 'Goedenacht' : hr < 12 ? 'Goedemorgen' : hr < 18 ? 'Goedemiddag' : 'Goedenavond');
   const name = (S.settings.name || $('#profileName').textContent || '').trim();
   el.textContent = name ? `${part}, ${name}` : part;
 }
@@ -42,7 +42,7 @@ function startScreensaver() {
   const date = h('div', { class: 'ss-date' });
   const astro = h('img', { class: 'ss-astro', src: 'img/mascot.png', alt: '' });
   const canvas = h('canvas', { class: 'ss-stars' });
-  const el = h('div', { id: 'screensaver' }, canvas, astro, h('div', { class: 'ss-time' }, clock, date), h('div', { class: 'ss-hint' }, 'Druk op een knop'));
+  const el = h('div', { id: 'screensaver' }, canvas, astro, h('div', { class: 'ss-time' }, clock, date), h('div', { class: 'ss-hint' }, t('Druk op een knop')));
   document.body.append(el);
   Idle.saver = el;
   Ambient.stop();
@@ -56,7 +56,7 @@ function startScreensaver() {
     requestAnimationFrame(tick);
     if (now - last < 33) return; // 30 fps is genoeg
     last = now;
-    const t = (now - t0) / 1000;
+    const sec = (now - t0) / 1000;
     ctx.fillStyle = 'rgba(0, 2, 10, 0.35)';
     ctx.fillRect(0, 0, W, H);
     for (const s of stars) {
@@ -66,12 +66,12 @@ function startScreensaver() {
       ctx.fillRect(s.x, s.y, s.z * 2, s.z * 2);
     }
     // astronaut drijft langzaam rond (lissajous) en draait zachtjes
-    const x = Math.sin(t * 0.11) * W * 0.32;
-    const y = Math.sin(t * 0.17 + 1) * H * 0.22;
-    astro.style.transform = `translate(${x}px, ${y}px) rotate(${Math.sin(t * 0.3) * 12}deg)`;
+    const x = Math.sin(sec * 0.11) * W * 0.32;
+    const y = Math.sin(sec * 0.17 + 1) * H * 0.22;
+    astro.style.transform = `translate(${x}px, ${y}px) rotate(${Math.sin(sec * 0.3) * 12}deg)`;
     const d = new Date();
-    clock.textContent = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', hour12: !!S.settings.clock12 });
-    date.textContent = d.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' });
+    clock.textContent = d.toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit', hour12: !!S.settings.clock12 });
+    date.textContent = d.toLocaleDateString(I18N.locale, { weekday: 'long', day: 'numeric', month: 'long' });
   };
   requestAnimationFrame(tick);
 }
@@ -91,8 +91,8 @@ setInterval(() => {
   const b = S.status && S.status.battery;
   if (!b || S.settings.lowBattery === false) return;
   if (b.status !== 'Discharging') { Battery.warned15 = Battery.warned5 = false; return; }
-  if (b.level <= 5 && !Battery.warned5) { Battery.warned5 = true; Sounds.error(); toast(`Batterij bijna leeg (${b.level}%). Sluit je oplader aan!`, { bad: true, icon: 'power', ms: 8000 }); }
-  else if (b.level <= 15 && !Battery.warned15) { Battery.warned15 = true; Sounds.open(); toast(`Batterij laag: ${b.level}%`, { bad: true, icon: 'power', ms: 6000 }); }
+  if (b.level <= 5 && !Battery.warned5) { Battery.warned5 = true; Sounds.error(); toast(t('Batterij bijna leeg ({n}%). Sluit je oplader aan!', { n: b.level }), { bad: true, icon: 'power', ms: 8000 }); }
+  else if (b.level <= 15 && !Battery.warned15) { Battery.warned15 = true; Sounds.open(); toast(t('Batterij laag: {n}%', { n: b.level }), { bad: true, icon: 'power', ms: 6000 }); }
 }, 20000);
 
 // ---------------------------------------------------------------- controllertest
@@ -104,23 +104,23 @@ function openPadTest() {
   const ls = stick(), rs = stick();
   const trig = () => { const f = h('div', { class: 'pt-fill' }); return { el: h('div', { class: 'pt-trig' }, f), f }; };
   const lt = trig(), rt = trig();
-  const name = h('div', { class: 'pt-name' }, 'Geen controller gevonden – druk op een knop');
+  const name = h('div', { class: 'pt-name' }, t('Geen controller gevonden – druk op een knop'));
   let lastB = 0, modal, running = true;
 
   const sheet = h('div', { class: 'sheet padtest' },
-    h('h2', {}, 'Controller testen'), name,
+    h('h2', {}, t('Controller testen')), name,
     h('div', { class: 'pt-grid' },
-      h('div', { class: 'pt-col' }, h('div', { class: 'pt-label' }, 'Linkerstick'), ls.el, h('div', { class: 'pt-label' }, 'LT'), lt.el),
+      h('div', { class: 'pt-col' }, h('div', { class: 'pt-label' }, t('Linkerstick')), ls.el, h('div', { class: 'pt-label' }, 'LT'), lt.el),
       h('div', { class: 'pt-btns' }, ...btns),
-      h('div', { class: 'pt-col' }, h('div', { class: 'pt-label' }, 'Rechterstick'), rs.el, h('div', { class: 'pt-label' }, 'RT'), rt.el)),
-    h('div', { class: 'osk-help' }, h('span', { class: 'hint' }, glyph('b'), glyph('b'), '2× snel drukken om te sluiten')));
+      h('div', { class: 'pt-col' }, h('div', { class: 'pt-label' }, t('Rechterstick')), rs.el, h('div', { class: 'pt-label' }, 'RT'), rt.el)),
+    h('div', { class: 'osk-help' }, h('span', { class: 'hint' }, glyph('b'), glyph('b'), t('2× snel drukken om te sluiten'))));
 
   const loop = () => {
     if (!running) return;
     requestAnimationFrame(loop);
     const p = [...(navigator.getGamepads ? navigator.getGamepads() : [])].find(Boolean);
     if (!p) return;
-    name.textContent = p.id.replace(/\(.*?\)/g, '').trim() || 'Controller';
+    name.textContent = p.id.replace(/\(.*?\)/g, '').trim() || t('Controller');
     btns.forEach((b, i) => b.classList.toggle('on', !!(p.buttons[i] && p.buttons[i].pressed)));
     const place = (s, x, y) => { s.dot.style.transform = `translate(${x * 38}px, ${y * 38}px)`; };
     place(ls, p.axes[0] || 0, p.axes[1] || 0);

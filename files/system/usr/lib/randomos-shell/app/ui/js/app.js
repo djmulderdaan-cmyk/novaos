@@ -63,6 +63,7 @@ Focus.setScope(() => UI.top() || $('#app'));
 async function boot() {
   S.settings = await nova.settings.get();
   applySettings();
+  applyStaticI18n();
   refreshGlyphs();
   loadCustomSounds();
   const introPromise = S.settings.intro ? playIntro() : Promise.resolve();
@@ -70,6 +71,7 @@ async function boot() {
   renderHome();
   renderLibrary();
   renderSettingsNav();
+  S.booted = true;
   const startTab = S.settings.startTab === 'library' ? 'library' : 'home';
   switchTab(startTab, { silent: true });
   updateGreeting();
@@ -154,8 +156,8 @@ async function loadProfile() {
 // ================================================================ status
 function updateClock() {
   const d = new Date();
-  const time = d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', hour12: !!S.settings.clock12 });
-  const date = S.settings.showDate ? d.toLocaleDateString('nl-NL', { weekday: 'short', day: 'numeric', month: 'short' }) + '  ' : '';
+  const time = d.toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit', hour12: !!S.settings.clock12 });
+  const date = S.settings.showDate ? d.toLocaleDateString(I18N.locale, { weekday: 'short', day: 'numeric', month: 'short' }) + '  ' : '';
   $('#clock').textContent = date + time;
 }
 
@@ -231,14 +233,14 @@ function renderHome() {
   const rail = $('#homeRail');
   rail.innerHTML = '';
   const list = homeGames();
-  $('#railTitle').textContent = S.settings.homeRow === 'favorites' && list.some((g) => g.favorite) ? 'Favorieten' : list.some((g) => g.lastPlayed) ? 'Verder spelen' : 'Je games';
+  $('#railTitle').textContent = S.settings.homeRow === 'favorites' && list.some((g) => g.favorite) ? t('Favorieten') : list.some((g) => g.lastPlayed) ? t('Verder spelen') : t('Je games');
   if (!list.length) {
     $('#hero').style.visibility = 'hidden';
     rail.append(h('div', { class: 'empty' },
       h('img', { class: 'empty-mascot', src: 'img/mascot.png', alt: '' }),
-      h('h3', {}, 'Nog geen games'),
-      h('p', {}, 'Installeer games via Steam, of voeg Epic- en GOG-games toe met Heroic in de bureaubladmodus. Ze verschijnen hier vanzelf.'),
-      h('button', { class: 'btn primary', 'data-focus': true, 'data-group': 'rail', onclick: () => nova.sys.openSteam() }, h('span', { class: 'ico steam' }), 'Steam openen')));
+      h('h3', {}, t('Nog geen games')),
+      h('p', {}, t('Installeer games via Steam, of voeg Epic- en GOG-games toe met Heroic in de bureaubladmodus. Ze verschijnen hier vanzelf.')),
+      h('button', { class: 'btn primary', 'data-focus': true, 'data-group': 'rail', onclick: () => nova.sys.openSteam() }, h('span', { class: 'ico steam' }), t('Steam openen'))));
     return;
   }
   $('#hero').style.visibility = '';
@@ -248,7 +250,7 @@ function renderHome() {
     rail.append(t);
   }
   const more = h('button', { class: 'tile wide', 'data-focus': true, 'data-group': 'rail', onclick: () => switchTab('library') },
-    h('div', { class: 'more' }, h('span', { class: 'ico apps' }), h('span', {}, `Alle games`), h('span', { style: { color: 'var(--text-3)', fontSize: '.85rem' } }, `${S.games.length} geïnstalleerd`)));
+    h('div', { class: 'more' }, h('span', { class: 'ico apps' }), h('span', {}, t('Alle games')), h('span', { style: { color: 'var(--text-3)', fontSize: '.85rem' } }, t('{n} geïnstalleerd', { n: S.games.length }))));
   rail.append(more);
   if (!S.hero || !list.find((g) => g.id === S.hero.id)) setHero(list[0]);
 }
@@ -276,7 +278,7 @@ function setHero(g) {
   if (changed) { meta.style.animation = 'none'; void meta.offsetWidth; meta.style.animation = ''; }
   const fav = $('#favBtn');
   $('.ico', fav).classList.toggle('on', !!g.favorite);
-  $('span:last-child', fav).textContent = g.favorite ? 'Favoriet' : 'Favoriet';
+  $('span:last-child', fav).textContent = t('Favoriet');
 }
 
 $('#playBtn').addEventListener('click', () => S.hero && launch(S.hero));
@@ -323,14 +325,14 @@ function renderLibrary() {
   const chips = $('#chips');
   chips.innerHTML = '';
   const sources = ['steam', 'epic', 'gog', 'amazon', 'custom'].filter((s) => S.games.some((g) => g.source === s));
-  const defs = [['all', 'Alle'], ['fav', 'Favorieten'], ...sources.map((s) => [s, SOURCE_NAMES[s]])];
+  const defs = [['all', t('Alle')], ['fav', t('Favorieten')], ...sources.map((s) => [s, SOURCE_NAMES[s]])];
   for (const [id, label] of defs) {
     const c = h('button', { class: `chip${S.filter === id ? ' on' : ''}`, 'data-focus': true, 'data-group': 'chips', 'data-id': `chip-${id}` }, label);
     c.addEventListener('click', () => { S.filter = id; Sounds.select(); keepFocus(chips, renderLibrary); });
     chips.append(c);
   }
-  $('#sortLabel').textContent = S.sort === 'az' ? 'A–Z' : 'Recent';
-  $('#searchLabel').textContent = S.query ? `“${S.query}”` : 'Zoeken';
+  $('#sortLabel').textContent = S.sort === 'az' ? 'A–Z' : t('Recent');
+  $('#searchLabel').textContent = S.query ? `“${S.query}”` : t('Zoeken');
 
   const grid = $('#libGrid');
   grid.innerHTML = '';
@@ -338,8 +340,8 @@ function renderLibrary() {
   $('#libCount').textContent = list.length;
   if (!list.length) {
     grid.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1', margin: 0 } },
-      h('h3', {}, S.query ? 'Niets gevonden' : 'Geen games in deze lijst'),
-      h('p', {}, S.query ? `Geen game met “${S.query}” in de naam.` : S.filter === 'fav' ? 'Druk op X bij een game om hem favoriet te maken.' : 'Probeer een ander filter.')));
+      h('h3', {}, S.query ? t('Niets gevonden') : t('Geen games in deze lijst')),
+      h('p', {}, S.query ? t('Geen game met “{q}” in de naam.', { q: S.query }) : S.filter === 'fav' ? t('Druk op X bij een game om hem favoriet te maken.') : t('Probeer een ander filter.'))));
     return;
   }
   for (const g of list) grid.append(tile(g, { group: 'grid', onPress: openDetail }));
@@ -348,7 +350,7 @@ function renderLibrary() {
 $('#sortBtn').addEventListener('click', () => { S.sort = S.sort === 'az' ? 'recent' : 'az'; Sounds.select(); keepFocus($('#screen-library'), renderLibrary); });
 $('#searchBtn').addEventListener('click', async () => {
   Sounds.select();
-  const q = await OSK.open({ title: 'Zoek in je bibliotheek', value: S.query, placeholder: 'Naam van de game' });
+  const q = await OSK.open({ title: t('Zoek in je bibliotheek'), value: S.query, placeholder: t('Naam van de game') });
   if (q === null) return;
   S.query = q.trim();
   renderLibrary();
@@ -361,7 +363,7 @@ async function toggleFavorite(g) {
   await saveSettings({ favorites: [...favs] });
   S.games.forEach((x) => { x.favorite = favs.has(x.id); });
   Sounds.toggle(favs.has(g.id));
-  toast(favs.has(g.id) ? `${g.title} is nu favoriet` : `${g.title} is geen favoriet meer`, { icon: 'star' });
+  toast(favs.has(g.id) ? t('{title} is nu favoriet', { title: g.title }) : t('{title} is geen favoriet meer', { title: g.title }), { icon: 'star' });
   rerenderAll();
 }
 
@@ -380,34 +382,34 @@ function openDetail(g) {
   const img = h('img', { alt: '' });
   cover.append(img);
   loadArt(img, g.art.cover, () => cover.append(placeholder(g)));
-  const favBtn = h('button', { class: 'btn ghost', 'data-focus': true }, h('span', { class: `ico star${g.favorite ? ' on' : ''}` }), g.favorite ? 'Favoriet' : 'Favoriet maken');
+  const favBtn = h('button', { class: 'btn ghost', 'data-focus': true }, h('span', { class: `ico star${g.favorite ? ' on' : ''}` }), g.favorite ? t('Favoriet') : t('Favoriet maken'));
   const stat = (k, v) => v ? h('div', {}, h('div', { class: 'k' }, k), h('div', { class: 'v' }, v)) : null;
-  const size = g.sizeBytes ? `${(g.sizeBytes / 1024 ** 3).toFixed(1).replace('.', ',')} GB` : null;
+  const size = g.sizeBytes ? `${(g.sizeBytes / 1024 ** 3).toLocaleString(I18N.locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} GB` : null;
   let modal;
   const sheet = h('div', { class: 'sheet detail' }, banner,
     h('div', { class: 'd-body' }, cover,
       h('div', { class: 'd-info' },
         h('span', { class: `badge ${g.source}` }, SOURCE_NAMES[g.source]),
         h('h2', { style: { marginTop: '10px' } }, g.title),
-        h('div', { class: 'stats' }, stat('Laatst gespeeld', relTime(g.lastPlayed) || 'Nog nooit'), stat('Speeltijd', playtimeText(g.playtime) || '—'), stat('Grootte', size)),
+        h('div', { class: 'stats' }, stat(t('Laatst gespeeld'), relTime(g.lastPlayed) || t('Nog nooit')), stat(t('Speeltijd'), playtimeText(g.playtime) || '—'), stat(t('Grootte'), size)),
         h('div', { class: 'd-actions' },
-          h('button', { class: 'btn primary', 'data-focus': true, 'data-autofocus': true, onclick: () => { UI.closeModal(modal); launch(g); } }, h('span', { class: 'ico play' }), 'Spelen'),
+          h('button', { class: 'btn primary', 'data-focus': true, 'data-autofocus': true, onclick: () => { UI.closeModal(modal); launch(g); } }, h('span', { class: 'ico play' }), t('Spelen')),
           favBtn,
-          h('button', { class: 'btn ghost', 'data-focus': true, onclick: async () => { UI.closeModal(modal); await toggleHidden(g); } }, isHidden(g) ? 'Weer tonen' : 'Verbergen'),
-          h('button', { class: 'btn ghost', 'data-focus': true, onclick: () => { Sounds.back(); UI.closeModal(modal); } }, 'Sluiten')))));
-  favBtn.addEventListener('click', async () => { await toggleFavorite(g); const now = S.games.find((x) => x.id === g.id); $('.ico', favBtn).classList.toggle('on', now.favorite); favBtn.lastChild.textContent = now.favorite ? 'Favoriet' : 'Favoriet maken'; });
+          h('button', { class: 'btn ghost', 'data-focus': true, onclick: async () => { UI.closeModal(modal); await toggleHidden(g); } }, isHidden(g) ? t('Weer tonen') : t('Verbergen')),
+          h('button', { class: 'btn ghost', 'data-focus': true, onclick: () => { Sounds.back(); UI.closeModal(modal); } }, t('Sluiten'))))));
+  favBtn.addEventListener('click', async () => { await toggleFavorite(g); const now = S.games.find((x) => x.id === g.id); $('.ico', favBtn).classList.toggle('on', now.favorite); favBtn.lastChild.textContent = now.favorite ? t('Favoriet') : t('Favoriet maken'); });
   modal = UI.openModal(sheet);
 }
 
 // ================================================================ starten
 let launchModal = null;
 async function launch(g) {
-  if (S.game) { Sounds.error(); toast(`${S.game.title} draait nog`, { icon: 'info', bad: true }); return; }
+  if (S.game) { Sounds.error(); toast(t('{title} draait nog', { title: S.game.title }), { icon: 'info', bad: true }); return; }
   Sounds.launch();
   Input.rumble(0.5, 0.7, 220);
   showLaunch(g, 'launching');
   const r = await nova.games.launch(g);
-  if (r && r.error) { closeLaunch(); Sounds.error(); toast(r.error, { bad: true, icon: 'info' }); }
+  if (r && r.error) { closeLaunch(); Sounds.error(); toast(tErr(r.error), { bad: true, icon: 'info' }); }
 }
 
 function showLaunch(g, phase) {
@@ -416,10 +418,10 @@ function showLaunch(g, phase) {
   const img = h('img', { alt: '' });
   cover.append(img);
   loadArt(img, g.art.cover, () => cover.append(placeholder(g)));
-  const status = h('p', { id: 'launchStatus' }, 'Wordt gestart…');
+  const status = h('p', { id: 'launchStatus' }, t('Wordt gestart…'));
   const box = h('div', { class: 'launch-box' }, cover, h('h2', {}, g.title), status, h('div', { class: 'spinner', id: 'launchSpin' }),
     h('div', { class: 'launch-actions' },
-      h('button', { class: 'btn ghost', 'data-focus': true, onclick: stopGame }, h('span', { class: 'ico stop' }), 'Stoppen')));
+      h('button', { class: 'btn ghost', 'data-focus': true, onclick: stopGame }, h('span', { class: 'ico stop' }), t('Stoppen'))));
   launchModal = UI.openModal(box, { className: 'launch', sticky: true, onBack: () => {} });
   setBackground(g.art.hero);
   updateLaunch(phase);
@@ -428,7 +430,7 @@ function showLaunch(g, phase) {
 function updateLaunch(phase) {
   const st = $('#launchStatus'), sp = $('#launchSpin');
   if (!st) return;
-  st.textContent = phase === 'running' ? 'Speelt nu. Houd de Home-knop ingedrukt om te stoppen.' : 'Wordt gestart…';
+  st.textContent = phase === 'running' ? t('Speelt nu. Houd de Home-knop ingedrukt om te stoppen.') : t('Wordt gestart…');
   sp.style.display = phase === 'running' ? 'none' : '';
 }
 
@@ -455,8 +457,8 @@ function onGameState(st) {
   setSleeping(false);
   closeLaunch();
   applySettings();
-  if (st && st.error) { Sounds.error(); toast(st.error, { bad: true, icon: 'info' }); }
-  else if (had) { Sounds.open(); toast('Welkom terug', { icon: 'gamepad' }); }
+  if (st && st.error) { Sounds.error(); toast(tErr(st.error), { bad: true, icon: 'info' }); }
+  else if (had) { Sounds.open(); toast(t('Welkom terug'), { icon: 'gamepad' }); }
   loadGames().then(rerenderAll);
 }
 nova.onGameState(onGameState);
@@ -467,17 +469,17 @@ async function openQuickMenu() {
   const s = S.status || (await nova.sys.status());
   const now = new Date();
   const items = [
-    h('div', { class: 'qm-time' }, now.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' })),
-    h('div', { class: 'qm-date' }, now.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long' })),
+    h('div', { class: 'qm-time' }, now.toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit', hour12: !!S.settings.clock12 })),
+    h('div', { class: 'qm-date' }, now.toLocaleDateString(I18N.locale, { weekday: 'long', day: 'numeric', month: 'long' })),
     h('div', { class: 'qm-cards' },
-      h('div', { class: 'qm-card' }, h('div', { class: 'k' }, 'Batterij'), h('div', { class: 'v' }, s.battery ? `${s.battery.level}%${s.battery.status === 'Charging' ? ' · laadt' : ''}` : 'Netstroom')),
-      h('div', { class: 'qm-card' }, h('div', { class: 'k' }, 'Wifi'), h('div', { class: 'v' }, s.wifi.enabled ? (s.wifi.ssid || 'Niet verbonden') : 'Uit'))),
+      h('div', { class: 'qm-card' }, h('div', { class: 'k' }, t('Batterij')), h('div', { class: 'v' }, s.battery ? (s.battery.status === 'Charging' ? t('{n}% · laadt', { n: s.battery.level }) : `${s.battery.level}%`) : t('Netstroom'))),
+      h('div', { class: 'qm-card' }, h('div', { class: 'k' }, t('Wifi')), h('div', { class: 'v' }, s.wifi.enabled ? (s.wifi.ssid || t('Niet verbonden')) : t('Uit')))),
   ];
-  if (s.volume.available) items.push(sliderRow('Volume', s.volume.level, (v) => nova.sys.volume(v)));
-  if (s.brightness.available) items.push(sliderRow('Helderheid', s.brightness.level, (v) => nova.sys.brightness(v), { min: 5 }));
-  if (S.game) items.push(actionRow(`${S.game.title} stoppen`, 'Sluit de game die nu draait', 'stop', () => { UI.closeModal(modal); stopGame(); }, 'qm'));
-  items.push(actionRow('Instellingen', null, 'apps', () => { UI.closeModal(modal); switchTab('settings'); }, 'qm'));
-  items.push(actionRow('Aan/uit', null, 'power', () => { UI.closeModal(modal); openPower(); }, 'qm'));
+  if (s.volume.available) items.push(sliderRow(t('Volume'), s.volume.level, (v) => nova.sys.volume(v)));
+  if (s.brightness.available) items.push(sliderRow(t('Helderheid'), s.brightness.level, (v) => nova.sys.brightness(v), { min: 5 }));
+  if (S.game) items.push(actionRow(t('{title} stoppen', { title: S.game.title }), t('Sluit de game die nu draait'), 'stop', () => { UI.closeModal(modal); stopGame(); }, 'qm'));
+  items.push(actionRow(t('Instellingen'), null, 'apps', () => { UI.closeModal(modal); switchTab('settings'); }, 'qm'));
+  items.push(actionRow(t('Aan/uit'), null, 'power', () => { UI.closeModal(modal); openPower(); }, 'qm'));
   let modal;
   modal = UI.openModal(h('div', { class: 'sheet' }, ...items), { className: 'drawer', onAction: (a) => { if (a === 'y') { Sounds.back(); UI.closeModal(modal); return true; } return false; } });
 }
@@ -488,43 +490,53 @@ function openPower() {
   let modal;
   const act = (a, msg) => () => { UI.closeModal(modal); if (msg) toast(msg, { icon: 'power' }); setTimeout(() => nova.sys.power(a), 400); };
   const list = h('div', { class: 'power-list' },
-    actionRow('Slaapstand', null, 'moon', act('suspend'), 'power'),
-    actionRow('Opnieuw opstarten', null, 'restart', act('reboot', 'Opnieuw opstarten…'), 'power'),
-    actionRow('Uitzetten', null, 'power', act('poweroff', 'Uitzetten…'), 'power'),
-    actionRow('Bureaubladmodus', 'Gewoon bureaublad met muis en toetsenbord', 'desktop', act('desktop', 'Naar bureaublad…'), 'power'),
-    actionRow('Annuleren', null, null, () => { Sounds.back(); UI.closeModal(modal); }, 'power'));
-  modal = UI.openModal(h('div', { class: 'sheet power-sheet' }, h('h2', {}, 'Aan/uit'), list), { focus: () => Focus.first('power') });
+    actionRow(t('Slaapstand'), null, 'moon', act('suspend'), 'power'),
+    actionRow(t('Opnieuw opstarten'), null, 'restart', act('reboot', t('Opnieuw opstarten…')), 'power'),
+    actionRow(t('Uitzetten'), null, 'power', act('poweroff', t('Uitzetten…')), 'power'),
+    actionRow(t('Bureaubladmodus'), t('Gewoon bureaublad met muis en toetsenbord'), 'desktop', act('desktop', t('Naar bureaublad…')), 'power'),
+    actionRow(t('Annuleren'), null, null, () => { Sounds.back(); UI.closeModal(modal); }, 'power'));
+  modal = UI.openModal(h('div', { class: 'sheet power-sheet' }, h('h2', {}, t('Aan/uit')), list), { focus: () => Focus.first('power') });
 }
 
 // ================================================================ hints
 function updateHints() {
   const el = $('#hints');
   el.innerHTML = '';
-  const add = (b, t) => el.append(h('span', { class: 'hint' }, ...(Array.isArray(b) ? b.map(glyph) : [glyph(b)]), t));
+  const add = (b, label, action) => el.append(h('button', { class: 'hint', onclick: () => handleAction(action || (Array.isArray(b) ? b[0] : b), { source: 'mouse' }) }, ...(Array.isArray(b) ? b.map(glyph) : [glyph(b)]), label));
   const top = UI.top();
   const cur = Focus.current;
-  if (top && top._opts.className === 'launch') { add('a', 'Kiezen'); add('guide', 'Ingedrukt: game stoppen'); return; }
+  if (top && top._opts.className === 'launch') { add('a', t('Kiezen')); add('guide', t('Ingedrukt: game stoppen'), 'guide-long'); return; }
   if (top) {
-    if (cur && cur.dataset.slider !== undefined) el.append(h('span', { class: 'hint' }, h('span', { class: 'glyph' }, '◀ ▶'), 'Aanpassen'));
-    add('a', 'Kiezen'); add('b', 'Terug'); return;
+    if (cur && cur.dataset.slider !== undefined) el.append(h('span', { class: 'hint' }, h('span', { class: 'glyph' }, '◀ ▶'), t('Aanpassen')));
+    add('a', t('Kiezen')); add('b', t('Terug')); return;
   }
-  if (cur && cur.dataset.slider !== undefined) el.append(h('span', { class: 'hint' }, h('span', { class: 'glyph' }, '◀ ▶'), 'Aanpassen'));
+  if (cur && cur.dataset.slider !== undefined) el.append(h('span', { class: 'hint' }, h('span', { class: 'glyph' }, '◀ ▶'), t('Aanpassen')));
   const onTile = cur && cur.classList.contains('tile') && cur._game;
-  if (S.tab === 'home' && onTile) add('a', 'Spelen');
-  else if (S.tab === 'library' && onTile) add('a', 'Openen');
-  else add('a', 'Kiezen');
-  if (onTile) add('x', 'Favoriet');
-  if (S.tab !== 'home') add('b', 'Terug');
-  add('y', 'Snelmenu');
-  add('start', 'Aan/uit');
+  if (S.tab === 'home' && onTile) add('a', t('Spelen'));
+  else if (S.tab === 'library' && onTile) add('a', t('Openen'));
+  else add('a', t('Kiezen'));
+  if (onTile) add('x', t('Favoriet'));
+  if (S.tab !== 'home') add('b', t('Terug'));
+  add('y', t('Snelmenu'));
+  add('start', t('Aan/uit'));
 }
 document.addEventListener('focusin-nova', () => updateHints());
 
 // ================================================================ invoer
-Input.on((a, extra = {}) => {
+function setInputMode(mode) {
+  if (document.body.dataset.input === mode) return;
+  document.body.dataset.input = mode;
+  refreshGlyphs();
+  updateHints();
+}
+
+Input.on((a, extra) => handleAction(a, extra));
+function handleAction(a, extra = {}) {
+  if (extra.source === 'keyboard' || extra.source === 'mouse') setInputMode('kb');
+  else if (extra.source === 'pad') setInputMode('pad');
   if (a === 'any') return;
-  if (a === 'connected') { applyPadStyle(extra.style); updateHints(); toast(`Controller verbonden`, { icon: 'gamepad' }); return; }
-  if (a === 'disconnected') { toast('Controller losgekoppeld', { icon: 'gamepad', bad: true }); return; }
+  if (a === 'connected') { applyPadStyle(extra.style); updateHints(); toast(t('Controller verbonden'), { icon: 'gamepad' }); return; }
+  if (a === 'disconnected') { toast(t('Controller losgekoppeld'), { icon: 'gamepad', bad: true }); return; }
   Sounds.unlock();
   if (extra.source === 'pad' && (!S.settings.pad || S.settings.pad === 'auto') && document.body.dataset.pad !== Input.lastStyle) applyPadStyle(Input.lastStyle);
 
@@ -574,8 +586,64 @@ Input.on((a, extra = {}) => {
       UI.closeAll();
       if (S.tab !== 'home') switchTab('home'); else Focus.first('rail');
       return;
+    case 'tab1': case 'tab2': case 'tab3':
+      if (!top) switchTab(TABS[Number(a.slice(3)) - 1]);
+      return;
+    case 'search':
+      if (top) return;
+      if (S.tab !== 'library') switchTab('library');
+      setTimeout(() => $('#searchBtn').click(), 80);
+      return;
+    case 'help':
+      if (!top) openShortcuts();
+      return;
   }
-});
+}
+
+// ---------------------------------------------------------------- muis
+// Scrollwiel op de game-rij scrolt horizontaal
+$('#homeRail').addEventListener('wheel', (e) => {
+  if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+  e.preventDefault();
+  $('#homeRail').scrollBy({ left: e.deltaY * 1.4, behavior: 'auto' });
+}, { passive: false });
+// Pijlknoppen naast de rij (alleen zichtbaar met de muis)
+for (const dir of [-1, 1]) {
+  const btn = h('button', { class: `rail-arrow ${dir < 0 ? 'left' : 'right'}`, 'aria-label': dir < 0 ? t('Naar links') : t('Naar rechts') }, dir < 0 ? '‹' : '›');
+  btn.addEventListener('click', () => { const r = $('#homeRail'); r.scrollBy({ left: dir * r.clientWidth * 0.7, behavior: 'smooth' }); Sounds.tick(); });
+  $('.rail-wrap').append(btn);
+}
+// Statusbalk is klikbaar
+$('#stWifi').addEventListener('click', () => { switchTab('settings'); openCat('wifi', true); });
+$('#stBt').addEventListener('click', () => { switchTab('settings'); openCat('bt', true); });
+$('#stBatt').addEventListener('click', () => !UI.top() && openQuickMenu());
+$('#clock').addEventListener('click', () => !UI.top() && openQuickMenu());
+$('#profile').addEventListener('click', () => { switchTab('settings'); openCat('look', true); });
+
+// ---------------------------------------------------------------- sneltoetsen
+function openShortcuts() {
+  Sounds.open();
+  const k = (...keys) => h('span', { class: 'keys' }, ...keys.map((x) => h('span', { class: 'glyph kc' }, x)));
+  const rows = [
+    [k('←', '↑', '→', '↓'), t('Bewegen')],
+    [k('Enter'), t('Kiezen / spelen')],
+    [k('Esc'), t('Terug (of rechtermuisknop)')],
+    [k('1', '2', '3'), t('Home, Bibliotheek, Instellingen')],
+    [k('Q', 'E'), t('Vorig / volgend tabblad')],
+    [k('/'), t('Zoeken in je bibliotheek (ook Ctrl+F)')],
+    [k('F'), t('Favoriet maken')],
+    [k('Y'), t('Snelmenu')],
+    [k('M'), t('Aan/uit-menu')],
+    [k('Home'), t('Terug naar Home')],
+    [k('H'), t('Dit overzicht')],
+  ];
+  let modal;
+  modal = UI.openModal(h('div', { class: 'sheet power-sheet shortcuts' },
+    h('h2', {}, t('Toetsenbord & muis')),
+    h('div', { class: 'sc-grid' }, ...rows.flatMap(([keys, label]) => [keys, h('span', {}, label)])),
+    h('p', { class: 'sc-mouse' }, t('Met de muis: wijs aan en klik. Scroll met het wiel door je games. Klik op de knoppen onderin, op de klok of op het wifi-icoon.')),
+    h('button', { class: 'btn primary', 'data-focus': true, 'data-autofocus': true, onclick: () => UI.closeModal(modal) }, t('Begrepen'))));
+}
 
 function goBack() {
   const cur = Focus.current;

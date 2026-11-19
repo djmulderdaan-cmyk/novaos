@@ -18,6 +18,7 @@ Start op met een eigen opstartscherm (de astronaut 🚀🃏) en gaat dan meteen 
 | `files/system/etc/gamescope-session-plus/sessions.d/ogui-steam` | Laat Game Mode starten met RandomOS Shell |
 | `assets/` | De astronaut (origineel + uitgeknipt) |
 | `tools/cutout_mascot.py` | Knipt de astronaut uit zijn blauwe achtergrond |
+| `tools/make_wallpaper.py` | Maakt de bureaublad-achtergrond met de astronaut |
 | `tools/make_logo.py` | Maakt de plaatjes voor het opstartscherm opnieuw (andere naam/kleur) |
 | `.github/workflows/build.yml` | Laat GitHub je OS elke dag automatisch bouwen |
 
@@ -131,6 +132,26 @@ Het hoofdmenu van RandomOS. Bediening:
 - **Home & bibliotheek:** starttabblad, favorieten eerst, verborgen games
 - **Energie:** screensaver met zwevende astronaut, automatisch slapen, batterijwaarschuwing
 - Wifi, Bluetooth (controllers koppelen), volume en helderheid, systeeminfo
+
+**Toetsenbord & muis** werken ook overal:
+
+| Toets | Doet |
+|---|---|
+| Pijltjes | Bewegen |
+| Enter | Kiezen / spelen |
+| Esc of rechtermuisknop | Terug |
+| 1 / 2 / 3 | Home / Bibliotheek / Instellingen |
+| Q / E | Vorig / volgend tabblad |
+| / of Ctrl+F | Zoeken in je bibliotheek |
+| F | Favoriet maken |
+| Y | Snelmenu |
+| M | Aan/uit-menu |
+| H | Overzicht van alle sneltoetsen |
+
+Met de muis: aanwijzen en klikken, scrollen door je games, schuifjes slepen, en klikken op de knoppen onderin, de klok of het wifi-icoon.
+De knoppen onderin het scherm passen zich vanzelf aan: controllerknoppen als je een controller gebruikt, toetsen als je het toetsenbord gebruikt.
+
+**Taal:** Nederlands of English (of automatisch, op basis van je systeemtaal), in te stellen bij *Instellingen*.
 
 **Eigen geluiden:** zet in de bureaubladmodus bestanden in `~/.config/randomos/sounds/` met deze namen:
 `move` (bewegen), `select` (kiezen), `back` (terug), `tab`, `open`, `launch` (game starten), `boot` (opstarten).

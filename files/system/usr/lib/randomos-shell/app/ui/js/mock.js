@@ -32,7 +32,7 @@ if (!window.nova) {
   clock12: false, showDate: false, battPct: true, greeting: true, reduceMotion: false,
   soundStyle: 'soft', uiVolume: 70, pad: 'auto', swapAB: false, navSpeed: 'normal', rumble: true,
   startTab: 'home', homeRow: 'recent', hidden: [], screensaver: 5, autoSleep: 0, lowBattery: true,
-  accent: '#2aa8e8', sounds: true, ambient: true, intro: true, perf: false, name: '', favorites: ['steam:413150', 'steam:367520'], recent: {} };
+  lang: 'auto', accent: '#2aa8e8', sounds: true, ambient: true, intro: true, perf: false, name: '', favorites: ['steam:413150', 'steam:367520'], recent: {} };
   try { cfg = { ...cfg, ...JSON.parse(localStorage.getItem('randomos-demo') || '{}') }; } catch {}
   const saveCfg = () => { try { localStorage.setItem('randomos-demo', JSON.stringify(cfg)); } catch {} };
 
@@ -57,7 +57,7 @@ if (!window.nova) {
       state: async () => running,
     },
     customSounds: async () => ({ dir: '~/.config/randomos/sounds', sounds: {} }),
-    profile: async () => ({ name: cfg.name || 'Speler', avatar: null }),
+    profile: async () => ({ name: cfg.name || t('Speler'), avatar: null }),
     settings: { get: async () => ({ ...cfg }), set: async (p) => { cfg = { ...cfg, ...p }; saveCfg(); return { ...cfg }; } },
     sys: {
       status: async () => ({
@@ -91,8 +91,8 @@ if (!window.nova) {
       ]; },
       btConnect: async () => { await wait(1500); return { ok: true }; },
       btDisconnect: async () => ({ ok: true }),
-      power: async (a) => { toast(`Demo: "${a}" zou nu uitgevoerd worden`, { icon: 'power' }); return { ok: true }; },
-      openSteam: async () => { toast('Demo: Steam Big Picture zou nu openen', { icon: 'steam' }); return { ok: true }; },
+      power: async (a) => { toast(t('Demo: "{a}" zou nu uitgevoerd worden', { a }), { icon: 'power' }); return { ok: true }; },
+      openSteam: async () => { toast(t('Demo: Steam Big Picture zou nu openen'), { icon: 'steam' }); return { ok: true }; },
     },
     onGameState: (cb) => { gameCb = cb; },
   };

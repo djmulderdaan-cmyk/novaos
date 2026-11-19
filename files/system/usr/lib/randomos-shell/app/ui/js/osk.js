@@ -7,7 +7,7 @@ const OSK = (() => {
     ['⇧', ...'zxcvbnm'.split(''), '-', '.', '_'],
   ];
 
-  function open({ title = 'Typ iets', value = '', password = false, placeholder = '' } = {}) {
+  function open({ title = t('Typ iets'), value = '', password = false, placeholder = '' } = {}) {
     return new Promise((resolve) => {
       let text = value, shift = false, reveal = false;
       const field = h('div', { class: 'osk-field' });
@@ -21,7 +21,7 @@ const OSK = (() => {
         field.append(h('span', { class: 'caret' }));
         $$('.key.letter', rowsEl).forEach((k) => { k.textContent = shift ? k.dataset.k.toUpperCase() : k.dataset.k; });
         const sk = $('.key.shift', rowsEl); if (sk) sk.classList.toggle('on', shift);
-        const rk = $('.key.reveal', rowsEl); if (rk) rk.textContent = reveal ? 'Verberg' : 'Toon';
+        const rk = $('.key.reveal', rowsEl); if (rk) rk.textContent = reveal ? t('Verberg') : t('Toon');
       };
 
       const type = (ch) => { text += ch; if (shift && /[a-z]/i.test(ch)) shift = false; Sounds.tick(); render(); };
@@ -36,21 +36,21 @@ const OSK = (() => {
         rowsEl.append(r);
       }
       const last = h('div', { class: 'osk-row' });
-      if (password) last.append(h('button', { class: 'key wide reveal', 'data-focus': true, 'data-group': 'osk', onclick: () => { reveal = !reveal; render(); } }, 'Toon'));
+      if (password) last.append(h('button', { class: 'key wide reveal', 'data-focus': true, 'data-group': 'osk', onclick: () => { reveal = !reveal; render(); } }, t('Toon')));
       last.append(
         h('button', { class: 'key wide', 'data-focus': true, 'data-group': 'osk', onclick: backspace }, '⌫'),
-        h('button', { class: 'key xwide', 'data-focus': true, 'data-group': 'osk', onclick: () => type(' ') }, 'spatie'),
-        h('button', { class: 'key wide accent', 'data-focus': true, 'data-group': 'osk', onclick: () => done(text) }, 'Klaar'),
+        h('button', { class: 'key xwide', 'data-focus': true, 'data-group': 'osk', onclick: () => type(' ') }, t('spatie')),
+        h('button', { class: 'key wide accent', 'data-focus': true, 'data-group': 'osk', onclick: () => done(text) }, t('Klaar')),
       );
       rowsEl.append(last);
 
       const sheet = h('div', { class: 'sheet osk-sheet' },
         h('h3', {}, title), field, rowsEl,
         h('div', { class: 'osk-help' },
-          h('span', { class: 'hint' }, glyph('x'), 'Wissen'),
-          h('span', { class: 'hint' }, glyph('y'), 'Spatie'),
-          h('span', { class: 'hint' }, glyph('start'), 'Klaar'),
-          h('span', { class: 'hint' }, glyph('b'), 'Annuleren')));
+          h('span', { class: 'hint' }, glyph('x'), t('Wissen')),
+          h('span', { class: 'hint' }, glyph('y'), t('Spatie')),
+          h('span', { class: 'hint' }, glyph('start'), t('Klaar')),
+          h('span', { class: 'hint' }, glyph('b'), t('Annuleren'))));
 
       let modal;
       const done = (val) => { Input.textMode = false; UI.closeModal(modal); resolve(val); };
@@ -60,7 +60,7 @@ const OSK = (() => {
           if (a === 'char') { type(extra); return true; }
           if (a === 'x') { backspace(); return true; }
           if (a === 'y') { type(' '); return true; }
-          if (a === 'start') { done(text); return true; }
+          if (a === 'start' || (a === 'a' && extra && extra.source === 'keyboard')) { done(text); return true; }
           return false;
         },
         focus: () => Focus.set($('.key.letter[data-k="q"]', rowsEl), { silent: true }),

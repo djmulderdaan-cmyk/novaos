@@ -12,12 +12,15 @@ const Input = (() => {
     ArrowUp: 'up', ArrowDown: 'down', ArrowLeft: 'left', ArrowRight: 'right',
     Enter: 'a', ' ': 'a', Escape: 'b', Backspace: 'b',
     q: 'lb', e: 'rb', PageUp: 'lb', PageDown: 'rb',
-    y: 'y', x: 'x', m: 'start', F1: 'start', Home: 'guide', Tab: 'select',
+    y: 'y', x: 'x', f: 'x', m: 'start', Home: 'guide', Tab: 'select',
+    '1': 'tab1', '2': 'tab2', '3': 'tab3', '/': 'search', h: 'help', '?': 'help', F1: 'help',
   };
   window.addEventListener('keydown', (ev) => {
     document.body.classList.remove('mouse');
     if (api.textMode && ev.key.length === 1 && !ev.ctrlKey && !ev.altKey) { emit('char', ev.key); ev.preventDefault(); return; }
     if (api.textMode && ev.key === 'Backspace') { emit('x'); ev.preventDefault(); return; }
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'f') { ev.preventDefault(); emit('search', { source: 'keyboard' }); return; }
+    if (ev.ctrlKey || ev.altKey || ev.metaKey) return;
     const k = KEYS[ev.key] || KEYS[ev.key.toLowerCase && ev.key.toLowerCase()];
     if (!k) { emit('any', { source: 'keyboard' }); return; }
     ev.preventDefault();
@@ -26,6 +29,10 @@ const Input = (() => {
   window.addEventListener('mousemove', (e) => {
     if (e.movementX || e.movementY) { document.body.classList.add('mouse'); emit('any', { source: 'mouse' }); }
   });
+  // rechtermuisknop en de "terug"-knop op de muis = terug
+  window.addEventListener('contextmenu', (e) => { e.preventDefault(); emit('b', { source: 'mouse' }); });
+  window.addEventListener('mouseup', (e) => { if (e.button === 3) { e.preventDefault(); emit('b', { source: 'mouse' }); } });
+  window.addEventListener('mousedown', () => { document.body.classList.add('mouse'); emit('any', { source: 'mouse' }); });
 
   // ---- gamepad ----
   const BTN = { 0: 'a', 1: 'b', 2: 'x', 3: 'y', 4: 'lb', 5: 'rb', 8: 'select', 9: 'start', 12: 'up', 13: 'down', 14: 'left', 15: 'right', 16: 'guide' };
