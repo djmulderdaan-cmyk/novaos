@@ -97,6 +97,8 @@ if (!window.nova) {
       steamStatus: async () => ({ running: true, loggedIn: !/steam-uit/.test(location.hash), signInOpen: false }),
       steamLogin: async () => ({ ok: true }),
       focusShell: async () => ({ ok: true }),
+      perfOverlay: async (l) => ({ available: true, level: l }),
+      perfAvailable: async () => ({ available: true }),
       openSteam: async () => { toast(t('Demo: Steam Big Picture zou nu openen'), { icon: 'steam' }); return { ok: true }; },
     },
     onGameState: (cb) => { gameCb = cb; },

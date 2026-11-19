@@ -351,6 +351,7 @@ async function renderCat() {
       sliderRow(t('Volume'), st.volume.level, (v) => nova.sys.volume(v), { group: P }),
       toggleRow(t('Dempen'), null, st.volume.muted, () => nova.sys.mute(), P)));
     if (st.brightness.available) out.push(group(t('Scherm'), sliderRow(t('Helderheid'), st.brightness.level, (v) => nova.sys.brightness(v), { min: 5, group: P })));
+    out.push(group(t('Prestaties'), perfOverlayRow(P)));
     if (!st.volume.available && !st.brightness.available) out.push(h('p', { class: 'sub' }, t('Geen geluid of scherm gevonden om te regelen.')));
   }
 

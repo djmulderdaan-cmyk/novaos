@@ -9,6 +9,7 @@ const FILE = path.join(DIR, 'settings.json');
 const DEFAULTS = {
   accent: '#2aa8e8',
   lang: 'auto',
+  perfOverlay: 'off',
   sounds: true,
   ambient: true,
   intro: true,

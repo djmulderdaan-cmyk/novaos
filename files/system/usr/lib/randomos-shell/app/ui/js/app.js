@@ -501,6 +501,12 @@ function onGameState(st) {
 nova.onGameState(onGameState);
 
 // ================================================================ snelmenu
+// Prestatie-overlay (FPS-meter) kiezen: Uit / FPS / Uitgebreid
+function perfOverlayRow(group) {
+  return choiceRow(t('Prestatie-overlay'), t('FPS-meter tijdens het gamen'), [['off', t('Uit')], ['fps', 'FPS'], ['full', t('Uitgebreid')]],
+    S.settings.perfOverlay || 'off', async (v) => { await saveSettings({ perfOverlay: v }); nova.sys.perfOverlay(v); }, group);
+}
+
 async function openQuickMenu() {
   Sounds.open();
   const s = S.status || (await nova.sys.status());
@@ -514,6 +520,7 @@ async function openQuickMenu() {
   ];
   if (s.volume.available) items.push(sliderRow(t('Volume'), s.volume.level, (v) => nova.sys.volume(v)));
   if (s.brightness.available) items.push(sliderRow(t('Helderheid'), s.brightness.level, (v) => nova.sys.brightness(v), { min: 5 }));
+  items.push(perfOverlayRow('qm'));
   if (S.game) items.push(actionRow(t('{title} stoppen', { title: S.game.title }), t('Sluit de game die nu draait'), 'stop', () => { UI.closeModal(modal); stopGame(); }, 'qm'));
   items.push(actionRow(t('Instellingen'), null, 'apps', () => { UI.closeModal(modal); switchTab('settings'); }, 'qm'));
   items.push(actionRow(t('Aan/uit'), null, 'power', () => { UI.closeModal(modal); openPower(); }, 'qm'));

@@ -32,6 +32,8 @@ contextBridge.exposeInMainWorld('nova', {
     btDisconnect: call('sys:bt-disconnect'),
     power: call('sys:power'),
     openSteam: call('sys:open-steam'),
+    perfOverlay: call('perf:overlay'),
+    perfAvailable: call('perf:available'),
     steamStatus: call('sys:steam-status'),
     steamLogin: call('sys:steam-login'),
     focusShell: call('sys:focus-shell'),

@@ -7,6 +7,7 @@ const launcher = require('./backend/launcher');
 const settings = require('./backend/settings');
 const gamescope = require('./backend/gamescope');
 const updates = require('./backend/updates');
+const overlay = require('./backend/overlay');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
@@ -122,6 +123,8 @@ handle('sys:open-steam', () => launcher.openSteamBigPicture());
 handle('sys:steam-status', () => launcher.steamStatus());
 handle('sys:steam-login', () => launcher.steamLogin());
 handle('sys:focus-shell', () => launcher.focusShell());
+handle('perf:overlay', (level) => overlay.setLevel(level));
+handle('perf:available', () => overlay.available());
 handle('upd:status', () => updates.status());
 handle('upd:check', () => updates.check());
 handle('upd:upgrade', () => updates.upgrade((line) => send('upd:progress', line)));
@@ -131,6 +134,7 @@ app.on('child-process-gone', (_e, d) => console.log('[main] hulpproces weg:', d 
 
 app.whenReady().then(() => {
   launcher.ensureSteam();
+  try { overlay.setLevel(settings.load().perfOverlay || 'off'); } catch {}
   createWindow();
   // Bewakers: Steam moet draaien, en gamescope moet het juiste venster vooraan houden
   setInterval(() => {
