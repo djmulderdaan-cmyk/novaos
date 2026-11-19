@@ -30,6 +30,10 @@ contextBridge.exposeInMainWorld('nova', {
     btDisconnect: call('sys:bt-disconnect'),
     power: call('sys:power'),
     openSteam: call('sys:open-steam'),
+    steamStatus: call('sys:steam-status'),
+    steamLogin: call('sys:steam-login'),
+    focusShell: call('sys:focus-shell'),
   },
   onGameState: (cb) => ipcRenderer.on('game:state', (_e, s) => cb(s)),
+  onSteamState: (cb) => ipcRenderer.on('steam:state', (_e, s) => cb(s)),
 });

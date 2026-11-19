@@ -8,6 +8,7 @@ const path = require('path');
 const os = require('os');
 const { spawn, execFileSync } = require('child_process');
 const settings = require('./settings');
+const gamescope = require('./gamescope');
 
 const HOME = os.homedir();
 let emit = () => {};
@@ -71,6 +72,8 @@ function launch(game) {
   if (l.type === 'steam') {
     ensureSteam();
     spawn('steam', [`steam://rungameid/${l.appid}`], { detached: true, stdio: 'ignore' }).unref();
+    // game-vensters herkennen aan SteamAppId en vooraan zetten
+    gamescope.focusGame(l.appid, () => processesWithEnv('SteamAppId', l.appid));
   } else {
     const env = { ...process.env, SteamGameId: fakeAppId(game.id), SteamAppId: fakeAppId(game.id), RANDOMOS_GAME: game.id };
     let child;
@@ -86,6 +89,7 @@ function launch(game) {
     child.on('error', () => finish('Kon de game niet starten'));
     child.unref();
     current.child = child;
+    gamescope.focusGame(fakeAppId(game.id), () => gamePids(game.id));
   }
   startPolling();
   return { ok: true };
@@ -119,6 +123,7 @@ function startPolling() {
 
 function finish(error) {
   clearInterval(pollTimer);
+  gamescope.focusShell();
   const ended = current && current.game;
   current = null;
   emit(error ? { ended: ended && ended.id, error } : null);
@@ -173,7 +178,51 @@ function onShellFocus() {
 function openSteamBigPicture() {
   ensureSteam();
   spawn('steam', ['steam://open/bigpicture'], { detached: true, stdio: 'ignore' }).unref();
+  gamescope.focusSteam();
   return { ok: true };
 }
 
-module.exports = { setEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture };
+// ---------------------------------------------------------------- Steam-login
+let steamEmit = () => {};
+let loginTimer = null;
+function setSteamEmitter(fn) { steamEmit = fn; }
+
+function windowTitles() {
+  try { return execFileSync('xwininfo', ['-root', '-children'], { env: process.env, timeout: 3000 }).toString(); } catch { return ''; }
+}
+
+// Ingelogd = er is geen "Sign in to Steam"-venster en Steam kent een account
+function steamStatus() {
+  const signInOpen = /"Sign in to Steam"|"Inloggen bij Steam"|"Steam Login"/i.test(windowTitles());
+  let hasUser = false;
+  try {
+    const t = fs.readFileSync(path.join(HOME, '.local/share/Steam/config/loginusers.vdf'), 'utf8');
+    hasUser = /"AccountName"/.test(t);
+  } catch {}
+  return { running: steamRunning(), loggedIn: hasUser && !signInOpen, signInOpen };
+}
+
+// Haal het Steam-inlogscherm naar voren; zodra je bent ingelogd komt de shell vanzelf terug
+function steamLogin() {
+  ensureSteam();
+  gamescope.focusSteam();
+  clearInterval(loginTimer);
+  const started = Date.now();
+  loginTimer = setInterval(() => {
+    const st = steamStatus();
+    if (st.loggedIn || Date.now() - started > 15 * 60000) {
+      clearInterval(loginTimer);
+      gamescope.focusShell();
+      steamEmit(st);
+    }
+  }, 3000);
+  return { ok: true };
+}
+
+function focusShell() {
+  clearInterval(loginTimer);
+  gamescope.focusShell();
+  return { ok: true };
+}
+
+module.exports = { setEmitter, setSteamEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture, steamStatus, steamLogin, focusShell };

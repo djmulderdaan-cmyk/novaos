@@ -92,8 +92,12 @@ if (!window.nova) {
       btConnect: async () => { await wait(1500); return { ok: true }; },
       btDisconnect: async () => ({ ok: true }),
       power: async (a) => { toast(t('Demo: "{a}" zou nu uitgevoerd worden', { a }), { icon: 'power' }); return { ok: true }; },
+      steamStatus: async () => ({ running: true, loggedIn: !/steam-uit/.test(location.hash), signInOpen: false }),
+      steamLogin: async () => ({ ok: true }),
+      focusShell: async () => ({ ok: true }),
       openSteam: async () => { toast(t('Demo: Steam Big Picture zou nu openen'), { icon: 'steam' }); return { ok: true }; },
     },
     onGameState: (cb) => { gameCb = cb; },
+    onSteamState: () => {},
   };
 }

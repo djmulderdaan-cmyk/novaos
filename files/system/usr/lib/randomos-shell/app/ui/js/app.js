@@ -1,5 +1,5 @@
 // RandomOS Shell - interface
-const nova = window.nova;
+// "nova" is de systeemkoppeling (Electron: via preload, demo: via mock.js)
 
 // Muis: alleen focus volgen als de muis echt beweegt (anders steelt een verborgen cursor de focus)
 document.addEventListener('mouseover', (e) => {
@@ -61,12 +61,14 @@ Focus.setScope(() => UI.top() || $('#app'));
 
 // ================================================================ start
 async function boot() {
+  // Intro meteen starten (niet eerst op de instellingen wachten); staat hij uit, dan slaan we hem direct over
+  let introPromise = playIntro();
   S.settings = await nova.settings.get();
+  if (!S.settings.intro && S.skipIntro) { S.skipIntro(); introPromise = Promise.resolve(); }
   applySettings();
   applyStaticI18n();
   refreshGlyphs();
   loadCustomSounds();
-  const introPromise = S.settings.intro ? playIntro() : Promise.resolve();
   await Promise.all([loadGames(), loadProfile(), refreshStatus()]);
   renderHome();
   renderLibrary();
@@ -238,9 +240,13 @@ function renderHome() {
     $('#hero').style.visibility = 'hidden';
     rail.append(h('div', { class: 'empty' },
       h('img', { class: 'empty-mascot', src: 'img/mascot.png', alt: '' }),
-      h('h3', {}, t('Nog geen games')),
-      h('p', {}, t('Installeer games via Steam, of voeg Epic- en GOG-games toe met Heroic in de bureaubladmodus. Ze verschijnen hier vanzelf.')),
-      h('button', { class: 'btn primary', 'data-focus': true, 'data-group': 'rail', onclick: () => nova.sys.openSteam() }, h('span', { class: 'ico steam' }), t('Steam openen'))));
+      h('h3', {}, S.steamLoggedIn === false ? t('Log in bij Steam') : t('Nog geen games')),
+      h('p', {}, S.steamLoggedIn === false
+        ? t('Log één keer in bij Steam om je games te zien. Na het inloggen kom je vanzelf terug in RandomOS.')
+        : t('Installeer games via Steam, of voeg Epic- en GOG-games toe met Heroic in de bureaubladmodus. Ze verschijnen hier vanzelf.')),
+      S.steamLoggedIn === false
+        ? h('button', { class: 'btn primary', 'data-focus': true, 'data-group': 'rail', onclick: () => steamLogin() }, h('span', { class: 'ico steam' }), t('Inloggen bij Steam'))
+        : h('button', { class: 'btn primary', 'data-focus': true, 'data-group': 'rail', onclick: () => openSteamFront() }, h('span', { class: 'ico steam' }), t('Steam openen'))));
     return;
   }
   $('#hero').style.visibility = '';
@@ -583,6 +589,7 @@ function handleAction(a, extra = {}) {
       if (!top) openPower();
       return;
     case 'guide':
+      if (S.steamFront) { S.steamFront = false; nova.sys.focusShell(); return; }
       UI.closeAll();
       if (S.tab !== 'home') switchTab('home'); else Focus.first('rail');
       return;
@@ -644,6 +651,31 @@ function openShortcuts() {
     h('p', { class: 'sc-mouse' }, t('Met de muis: wijs aan en klik. Scroll met het wiel door je games. Klik op de knoppen onderin, op de klok of op het wifi-icoon.')),
     h('button', { class: 'btn primary', 'data-focus': true, 'data-autofocus': true, onclick: () => UI.closeModal(modal) }, t('Begrepen'))));
 }
+
+// ---------------------------------------------------------------- Steam vooraan / inloggen
+async function checkSteam() {
+  const st = await nova.sys.steamStatus();
+  const before = S.steamLoggedIn;
+  S.steamLoggedIn = st && !st.error ? !!st.loggedIn : null;
+  if (before !== S.steamLoggedIn) keepFocus($('#screen-home'), renderHome);
+}
+function steamLogin() {
+  S.steamFront = true;
+  nova.sys.steamLogin();
+  toast(t('Steam-inlogscherm geopend. Druk op de Home-knop om terug te gaan.'), { icon: 'steam', ms: 6000 });
+}
+function openSteamFront() {
+  S.steamFront = true;
+  nova.sys.openSteam();
+  toast(t('Steam geopend. Druk op de Home-knop om terug te gaan.'), { icon: 'steam', ms: 6000 });
+}
+nova.onSteamState && nova.onSteamState(async (st) => {
+  S.steamFront = false;
+  if (st && st.loggedIn) { toast(t('Ingelogd bij Steam'), { icon: 'check' }); await loadGames(); }
+  await checkSteam();
+  rerenderAll();
+});
+window.addEventListener('DOMContentLoaded', () => { setTimeout(checkSteam, 1500); setInterval(checkSteam, 60000); });
 
 function goBack() {
   const cur = Focus.current;

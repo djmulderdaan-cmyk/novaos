@@ -5,6 +5,7 @@ const games = require('./backend/games');
 const system = require('./backend/system');
 const launcher = require('./backend/launcher');
 const settings = require('./backend/settings');
+const gamescope = require('./backend/gamescope');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
@@ -29,7 +30,22 @@ function createWindow() {
   });
   win.setMenu(null);
   win.loadFile(path.join(__dirname, 'ui', 'index.html'));
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    win.show();
+    // In Game Mode: gamescope vertellen dat dit het hoofdscherm is
+    try {
+      const handle = win.getNativeWindowHandle();
+      const xid = handle.length >= 4 ? handle.readUInt32LE(0) : 0;
+      if (xid) gamescope.init(xid).then((ok) => console.log('gamescope:', ok ? `actief, venster ${xid}` : 'niet gevonden'));
+    } catch (e) { console.error('gamescope init', e); }
+  });
+
+  // Fouten uit de interface in het logboek zetten (~/.local/state/randomos/shell.log)
+  win.webContents.on('console-message', (e) => {
+    const level = e.level != null ? e.level : '';
+    if (level === 'warning' || level === 'error' || level === 2 || level === 3) console.log(`[ui ${level}] ${e.message} (${e.sourceId || ''}:${e.lineNumber || ''})`);
+  });
+  win.webContents.on('render-process-gone', (_e, d) => console.log('[ui] renderer weg:', d && d.reason));
 
   // Externe links nooit in de shell openen
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -45,6 +61,7 @@ function send(channel, payload) {
 }
 
 launcher.setEmitter((state) => send('game:state', state));
+launcher.setSteamEmitter((st) => send('steam:state', st));
 
 const handle = (channel, fn) =>
   ipcMain.handle(channel, async (_e, ...args) => {
@@ -82,6 +99,9 @@ handle('sys:bt-connect', (mac) => system.btConnect(mac));
 handle('sys:bt-disconnect', (mac) => system.btDisconnect(mac));
 handle('sys:power', (action) => system.power(action, app));
 handle('sys:open-steam', () => launcher.openSteamBigPicture());
+handle('sys:steam-status', () => launcher.steamStatus());
+handle('sys:steam-login', () => launcher.steamLogin());
+handle('sys:focus-shell', () => launcher.focusShell());
 
 app.whenReady().then(() => {
   launcher.ensureSteam();
