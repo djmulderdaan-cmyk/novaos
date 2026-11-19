@@ -304,18 +304,21 @@ function watchdog() {
 
 // Is er een groot, zichtbaar Steam-venster (Big Picture, inlogscherm of bibliotheek)?
 function steamWindowOpen() {
-  const out = windowTitles();
-  const ids = out.split('\n')
-    .filter((l) => /\("steamwebhelper" "steam"\)/.test(l) && /\b(1[2-9]\d\d|[2-9]\d\d\d)x(\d{3,4})\+/.test(l))
-    .map((l) => (l.match(/^\s*(0x[0-9a-f]+)/i) || [])[1])
-    .filter(Boolean);
-  for (const id of ids) {
+  // Gamescope weet zelf of Steam (app 769) een venster heeft dat getoond kan worden:
+  // dat blijft zo bij wisselen tussen Bibliotheek, Store, enz.
+  try {
+    const out = execFileSync('xprop', ['-root', 'GAMESCOPE_FOCUSABLE_APPS'], { env: process.env, timeout: 2000 }).toString();
+    const apps = (out.split('=')[1] || '').split(',').map((x) => Number(x.trim()));
+    if (apps.includes(769)) return true;
+  } catch {}
+  // terugval: een groot, zichtbaar Steam-venster
+  const lines = windowTitles().split('\n').filter((l) => /"steamwebhelper"|"steam"/.test(l) && /\b(1[0-9]\d\d|[2-9]\d\d\d)x(\d{3,4})\+/.test(l));
+  for (const l of lines) {
+    const id = (l.match(/^\s*(0x[0-9a-f]+)/i) || [])[1];
+    if (!id) continue;
     try {
       const info = execFileSync('xwininfo', ['-id', id], { env: process.env, timeout: 2000 }).toString();
-      if (!/Map State:\s*IsViewable/.test(info)) continue; // geminimaliseerd of verborgen
-      const st = execFileSync('xprop', ['-id', id, '_NET_WM_STATE'], { env: process.env, timeout: 2000 }).toString();
-      if (/_NET_WM_STATE_HIDDEN/.test(st)) continue;
-      return true;
+      if (/Map State:\s*IsViewable/.test(info)) return true;
     } catch {}
   }
   return false;
@@ -326,13 +329,15 @@ let steamFrontTimer = null;
 function watchSteamFront() {
   clearInterval(steamFrontTimer);
   let seen = false;
+  let misses = 0;
   const started = Date.now();
   steamFrontTimer = setInterval(() => {
     if (gamescope.mode !== 'steam') { clearInterval(steamFrontTimer); return; }
     const open = steamWindowOpen();
-    if (open) seen = true;
-    // even tijd geven om te openen (Big Picture kan een paar seconden duren)
-    if (!open && (seen || Date.now() - started > 20000)) {
+    if (open) { seen = true; misses = 0; } else misses++;
+    // even tijd geven om te openen (Big Picture kan een paar seconden duren), en
+    // pas na 2 keer achter elkaar "dicht" terug (wisselen naar de Store duurt even)
+    if (!open && misses >= 2 && (seen || Date.now() - started > 20000)) {
       clearInterval(steamFrontTimer);
       console.log('[steam] venster dicht/geminimaliseerd, terug naar RandomOS');
       gamescope.focusShell();
