@@ -84,6 +84,18 @@ async function boot() {
   const st = await nova.games.state();
   if (st) onGameState(st);
   setInterval(refreshStatus, 10000);
+  // Nieuw geïnstalleerde (of verwijderde) games vanzelf laten verschijnen
+  setInterval(async () => {
+    if (S.game || UI.top() || Input.textMode) return;
+    const before = S.games.map((g) => g.id).sort().join('|');
+    await loadGames();
+    const after = S.games.map((g) => g.id).sort().join('|');
+    if (before !== after) {
+      const added = S.games.filter((g) => !before.split('|').includes(g.id));
+      rerenderAll();
+      if (added.length) toast(t('Nieuw in je bibliotheek: {name}', { name: added.map((g) => g.title).join(', ') }), { icon: 'check', ms: 5000 });
+    }
+  }, 30000);
   setTimeout(async () => {
     const st = nova.updates && await nova.updates.status();
     if (st && st.staged) toast(t('Er staat een update klaar. Herstart om hem te installeren.'), { icon: 'restart', ms: 7000 });
