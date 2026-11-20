@@ -88,6 +88,7 @@ const CATS = [
   { id: 'bt', name: 'Bluetooth', icon: 'bt' },
   { id: 'sound', name: 'Geluid & scherm', icon: 'sound' },
   { id: 'games', name: 'Games', icon: 'steam' },
+  { id: 'storage', name: 'Opslag', icon: 'download' },
   { id: 'system', name: 'Systeem', icon: 'cpu' },
   { id: 'about', name: 'Over RandomOS', icon: 'info' },
 ];
@@ -390,6 +391,25 @@ async function renderCat() {
     }
     out.push(group(t('Eigen games toevoegen'), h('div', { class: 'row static', style: { display: 'block', lineHeight: 1.6, color: 'var(--text-2)' } },
       ...tx('Ga naar de bureaubladmodus en zet je games in {file}. Epic-, GOG- en Amazon-games uit Heroic verschijnen vanzelf.', { file: h('b', { style: { color: 'var(--text)' } }, '~/.config/randomos/games.json') }))));
+  }
+
+  if (id === 'storage') {
+    head(t('Opslag'), t('Hoeveel ruimte je games en apps innemen.'));
+    const st = await nova.sys.storage().catch(() => null);
+    const GB = (b) => `${(b / 1e9).toLocaleString(I18N.locale, { maximumFractionDigits: b < 10e9 ? 1 : 0 })} GB`;
+    if (st && st.available) {
+      const pct = Math.round((st.used / st.size) * 100);
+      out.push(group(null, h('div', { class: 'row static', style: { display: 'block' } },
+        h('div', { style: { display: 'flex', justifyContent: 'space-between', marginBottom: '10px' } },
+          h('b', {}, t('{free} vrij', { free: GB(st.free) })), h('span', { style: { color: 'var(--text-2)' } }, t('{used} van {size} gebruikt', { used: GB(st.used), size: GB(st.size) }))),
+        h('div', { class: 'dl-bar store-bar' }, h('div', { class: `dl-fill${pct >= 90 ? ' full' : ''}`, style: { width: pct + '%' } })),
+        st.free < 15e9 ? h('p', { class: 'sub', style: { color: '#ff9aa8', marginTop: '10px' } }, t('Je schijf is bijna vol. Verwijder games die je niet meer speelt.')) : null)));
+    }
+    const big = S.games.filter((g) => g.sizeBytes > 0).sort((a, b) => b.sizeBytes - a.sizeBytes).slice(0, 10);
+    if (big.length) {
+      out.push(group(t('Grootste games'), ...big.map((g) => h('div', { class: 'row static' }, rowText(g.title, SOURCE_NAMES[g.source] || ''), h('span', { class: 'r-val' }, GB(g.sizeBytes))))));
+      out.push(group(null, actionRow(t('Games verwijderen via Steam'), t('In Steam: game kiezen → tandwiel → Beheren → Verwijderen'), 'steam', () => openSteamFront(), P)));
+    }
   }
 
   if (id === 'system') {

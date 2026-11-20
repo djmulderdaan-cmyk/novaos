@@ -526,6 +526,7 @@ function openDetail(g) {
       h('div', { class: 'd-info' },
         h('span', { class: `badge ${g.source}` }, SOURCE_NAMES[g.source]),
         h('h2', { style: { marginTop: '10px' } }, g.title),
+        gameFpsRow(g),
         h('div', { class: 'stats' }, stat(t('Laatst gespeeld'), relTime(g.lastPlayed) || t('Nog nooit')), stat(t('Speeltijd'), playtimeText(g.playtime) || '—'), stat(t('Grootte'), size)),
         h('div', { class: 'd-actions' },
           h('button', { class: 'btn primary', 'data-focus': true, 'data-autofocus': true, onclick: () => { UI.closeModal(modal); launch(g); } }, h('span', { class: 'ico play' }), t('Spelen')),
@@ -650,6 +651,20 @@ if (nova.onSysSwap) {
 
 // ================================================================ snelmenu
 // Prestatie-overlay (FPS-meter) kiezen: Uit / FPS / Uitgebreid
+// Eigen FPS-limiet voor één game (in het Info-scherm)
+function gameFpsRow(g) {
+  const per = (S.settings.fpsGame || {})[g.id];
+  const row = choiceRow(t('FPS-limiet voor deze game'), t('Standaard = je gewone instelling'), [['default', t('Standaard')], [0, t('Uit')], [20, '20'], [30, '30'], [45, '45']],
+    per == null ? 'default' : per, async (v) => {
+      await nova.sys.fpsGame(g.id, v);
+      const next = { ...(S.settings.fpsGame || {}) };
+      if (v === 'default') delete next[g.id]; else next[g.id] = v;
+      S.settings.fpsGame = next;
+    }, 'detail');
+  row.classList.add('detail-fps');
+  return row;
+}
+
 function fpsLimitRow(group) {
   return choiceRow(t('FPS-limiet'), t('Lager = langer spelen op je batterij en een koelere laptop'), [[0, t('Uit')], [20, '20'], [30, '30'], [45, '45']],
     Number(S.settings.fpsLimit) || 0, async (v) => { S.settings.fpsLimit = v; await nova.sys.fpsLimit(v); }, group);

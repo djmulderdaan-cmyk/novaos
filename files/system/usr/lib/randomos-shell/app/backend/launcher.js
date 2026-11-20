@@ -10,6 +10,15 @@ const { spawn, execFileSync } = require('child_process');
 const settings = require('./settings');
 const gamescope = require('./gamescope');
 
+// FPS-limiet: eigen limiet van de game zolang die draait, daarna weer de gewone
+function applyFps(gameId) {
+  try {
+    const s = settings.load();
+    const per = gameId != null ? (s.fpsGame || {})[gameId] : undefined;
+    require('./system').setFpsLimit(per != null ? per : s.fpsLimit || 0);
+  } catch {}
+}
+
 const HOME = os.homedir();
 let emit = () => {};
 let current = null; // { game, phase: 'launching'|'running', startedAt, child }
@@ -133,6 +142,7 @@ function launch(game) {
     else return { error: `${current.game.title} draait al` };
   }
   rememberPlayed(game.id);
+  applyFps(game.id);
   const l = game.launch;
   current = { game, phase: 'launching', startedAt: Date.now(), sawRunning: false, child: null };
   emit(publicState());
@@ -301,6 +311,7 @@ function finish(error) {
   clearInterval(pollTimer);
   stopPadMapper();
   addPlaytime(current);
+  applyFps(null);
   gamescope.focusShell();
   const ended = current && current.game;
   current = null;
@@ -445,6 +456,7 @@ function adoptSteamGame(appid) {
   if (!game) game = { id: `steam:${appid}`, title: 'Game', source: 'steam', art: { cover: [], hero: [], logo: [], header: [] }, launch: { type: 'steam', appid } };
   console.log(`[launcher] game ${appid} draait (gestart via Steam), overnemen`);
   current = { game, phase: 'running', startedAt: Date.now(), sawRunning: true, child: null, adopted: true };
+  applyFps(game.id);
   emit(publicState());
   focusCurrentGame(appid, () => processesWithEnv('SteamAppId', appid));
   startPolling();
@@ -553,4 +565,4 @@ function focusShell() {
   return { ok: true };
 }
 
-module.exports = { showShellOverGame, resumeGame, watchdog, setEmitter, setSteamEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture, steamStatus, steamLogin, focusShell };
+module.exports = { applyFps, currentGameId: () => (current ? current.game.id : null), showShellOverGame, resumeGame, watchdog, setEmitter, setSteamEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture, steamStatus, steamLogin, focusShell };

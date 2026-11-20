@@ -147,7 +147,23 @@ handle('sys:steam-status', () => launcher.steamStatus());
 handle('sys:steam-login', () => launcher.steamLogin());
 handle('sys:focus-shell', () => launcher.focusShell());
 handle('perf:overlay', (level) => overlay.setLevel(level));
-handle('perf:fps-limit', async (fps) => { settings.save({ fpsLimit: Number(fps) || 0 }); return system.setFpsLimit(fps); });
+handle('perf:fps-limit', async (fps) => {
+  settings.save({ fpsLimit: Number(fps) || 0 });
+  // draait er een game met een eigen limiet? dan die laten staan
+  launcher.applyFps(launcher.currentGameId());
+  return { ok: true };
+});
+// eigen FPS-limiet voor één game (null = standaard gebruiken)
+handle('perf:fps-game', async (gameId, fps) => {
+  const id = String(gameId || '');
+  if (!id) return { error: 'Niet gevonden' };
+  const per = { ...(settings.load().fpsGame || {}) };
+  if (fps == null || fps === 'default') delete per[id]; else per[id] = Math.max(0, Math.min(240, Number(fps) || 0));
+  settings.save({ fpsGame: per });
+  if (launcher.currentGameId() === id) launcher.applyFps(id);
+  return { ok: true };
+});
+handle('sys:storage', () => system.storage());
 
 // Slaaptimer: na X minuten gaat de laptop slapen (ook tijdens een game)
 let sleepTimer = null, sleepAt = 0, sleepMin = 0;

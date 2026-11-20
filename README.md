@@ -140,6 +140,8 @@ Het hoofdmenu van RandomOS. Bediening:
 - **Downloads:** Steam-downloads en -updates met voortgang op Home, en een melding als een game klaar is om te spelen
 - **Controllerbatterij** van draadloze controllers in de statusbalk en het snelmenu
 - **FPS-limiet** (20/30/45) in het snelmenu en bij Energie: langer spelen op de batterij; plus **temperatuur** en **resterende batterijtijd** in het snelmenu
+- **FPS-limiet per game** (bij *Info*): schakelt vanzelf als die game start
+- **Opslag** (Instellingen): hoe vol je schijf is en je grootste games
 - **Unity- en .exe-games** zonder controller-ondersteuning: je controller werkt als toetsenbord en muis (per game aan/uit bij *Info*)
 
 **Toetsenbord & muis** werken ook overal:

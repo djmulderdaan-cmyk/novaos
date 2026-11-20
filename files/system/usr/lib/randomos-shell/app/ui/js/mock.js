@@ -82,6 +82,8 @@ if (!window.nova) {
     },
     sys: {
       fpsLimit: async () => ({ ok: true }),
+      fpsGame: async () => ({ ok: true }),
+      storage: async () => ({ available: true, size: 237e9, used: 141e9, free: 96e9 }),
       sleepTimer: async (min) => (min ? { at: Date.now() + min * 60000, min } : { at: 0, min: 0 }),
       sleepTimerGet: async () => ({ at: 0, min: 0 }),
       status: async () => ({

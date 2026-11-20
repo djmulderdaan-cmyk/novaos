@@ -50,6 +50,15 @@ function cpuTemp() {
   return fallback;
 }
 
+// Opslag van de thuismap (waar games en apps staan), in bytes
+async function storage() {
+  const r = await run('df', ['-B1', '--output=size,used,avail', os.homedir()]);
+  const line = r.ok ? r.out.trim().split('\n')[1] : null;
+  if (!line) return { available: false };
+  const [size, used, avail] = line.trim().split(/\s+/).map(Number);
+  return { available: true, size, used, free: avail };
+}
+
 // FPS-limiet voor games via gamescope (0 = geen limiet)
 function setFpsLimit(fps) {
   const n = Math.max(0, Math.min(240, Number(fps) || 0));
@@ -229,4 +238,4 @@ async function power(action, app) {
   }
 }
 
-module.exports = { setFpsLimit, status, info, setVolume, toggleMute, setBrightness, wifiList, wifiConnect, wifiRadio, btPower, btDevices, btScan, btConnect, btDisconnect, power };
+module.exports = { storage, setFpsLimit, status, info, setVolume, toggleMute, setBrightness, wifiList, wifiConnect, wifiRadio, btPower, btDevices, btScan, btConnect, btDisconnect, power };

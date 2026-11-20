@@ -11,6 +11,7 @@ const DEFAULTS = {
   lang: 'auto',
   perfOverlay: 'off',
   fpsLimit: 0, // 0 = geen limiet
+  fpsGame: {}, // gameId -> eigen FPS-limiet voor die game
   sounds: true,
   ambient: true,
   intro: true,
