@@ -7,6 +7,7 @@ het volume met wpctl en de helderheid met brightnessctl.
 Schrijft na elke wijziging een regel naar stdout voor de shell:
   vol <0-100> <0|1 gedempt>
   bright <0-100>
+  power            (aan/uit-knop ingedrukt; de shell beslist wat er gebeurt)
 """
 import re
 import select
@@ -22,7 +23,7 @@ except ImportError:
     print("mediakeys: python3-evdev ontbreekt", file=sys.stderr)
     sys.exit(1)
 
-KEYS = {e.KEY_VOLUMEUP, e.KEY_VOLUMEDOWN, e.KEY_MUTE, e.KEY_BRIGHTNESSUP, e.KEY_BRIGHTNESSDOWN}
+KEYS = {e.KEY_VOLUMEUP, e.KEY_VOLUMEDOWN, e.KEY_MUTE, e.KEY_BRIGHTNESSUP, e.KEY_BRIGHTNESSDOWN, e.KEY_POWER}
 SKIP_NAMES = ("RandomOS virtuele", "randomos-test")
 SINK = "@DEFAULT_AUDIO_SINK@"
 
@@ -62,6 +63,8 @@ def act(code):
     elif code == e.KEY_BRIGHTNESSUP:
         run("brightnessctl", "-q", "-c", "backlight", "set", "5%+")
         report_brightness()
+    elif code == e.KEY_POWER:
+        print("power", flush=True)
     elif code == e.KEY_BRIGHTNESSDOWN:
         run("brightnessctl", "-q", "-c", "backlight", "-n", "5%", "set", "5%-")  # nooit helemaal zwart
         report_brightness()
@@ -114,10 +117,11 @@ def main():
             for ev in events:
                 if ev.type != e.EV_KEY or ev.code not in KEYS or ev.value == 0:
                     continue
-                if ev.code == e.KEY_MUTE and ev.value == 2:
+                if ev.code in (e.KEY_MUTE, e.KEY_POWER) and ev.value == 2:
                     continue  # dempen niet herhalen bij ingedrukt houden
                 now = time.monotonic()
-                if ev.value == 1 and now - last.get((ev.code, "press"), 0) < 0.08:
+                # zelfde druk via een tweede apparaat (de aan/uit-knop heeft er vaak twee)
+                if ev.value == 1 and now - last.get((ev.code, "press"), 0) < (1.5 if ev.code == e.KEY_POWER else 0.08):
                     continue  # zelfde druk via een tweede apparaat
                 if ev.value == 1:
                     last[(ev.code, "press")] = now

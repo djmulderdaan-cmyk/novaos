@@ -869,6 +869,14 @@ function showOsd(d) {
   if (S.status && vol && S.status.volume) { S.status.volume.level = d.level; S.status.volume.muted = d.muted; }
 }
 if (nova.onOsd) nova.onOsd(showOsd);
+// aan/uit-knop van de laptop: het aan/uit-menu (nog een keer drukken = slaapstand)
+function onPowerPress() {
+  const open = $('.power-sheet .power-list');
+  if (open) { UI.closeAll(); toast(t('Slaapstand…'), { icon: 'moon' }); setTimeout(() => nova.sys.power('suspend'), 400); return; }
+  UI.closeAll();
+  openPower();
+}
+if (nova.onPowerButton) nova.onPowerButton(onPowerPress);
 
 // ================================================================ slaaptimer
 async function sleepTimerRow(group) {

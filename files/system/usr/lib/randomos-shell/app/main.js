@@ -206,6 +206,18 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => app.quit());
 
+// Aan/uit-knop (logind laat hem op Bazzite aan Steam over, maar Steam draait hier op de achtergrond):
+// tijdens een game = slaapstand (zoals een console), in het menu = aan/uit-menu tonen
+function onPowerButton() {
+  const st = launcher.state();
+  if (st && st.phase === 'running' && gamescope.mode === 'game') {
+    console.log('[aan/uit] knop tijdens game: slaapstand');
+    system.power('suspend', app);
+  } else {
+    send('power-button', {});
+  }
+}
+
 // Volume- en helderheidstoetsen van de laptop (werkt ook tijdens een game)
 let mediaKeys = null;
 function startMediaKeys(tries = 0) {
@@ -222,6 +234,7 @@ function startMediaKeys(tries = 0) {
       buf = buf.slice(i + 1);
       if (k === 'vol') send('osd', { type: 'volume', level: Number(a), muted: b === '1' });
       else if (k === 'bright') send('osd', { type: 'brightness', level: Number(a) });
+      else if (k === 'power') onPowerButton();
     }
   });
   child.on('error', () => {});

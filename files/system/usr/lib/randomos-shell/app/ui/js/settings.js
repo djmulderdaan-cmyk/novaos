@@ -460,6 +460,7 @@ async function renderCat() {
       [t('Verras me'), t('Weet je niet wat je wilt spelen? De Verras me-tegel op Home kiest iets voor je.')],
       [t('Slaaptimer'), t('In het snelmenu: de laptop gaat na 30 minuten tot 2 uur vanzelf slapen.')],
       [t('Volume en helderheid'), t('De toetsen op het toetsenbord werken overal, ook tijdens een game.')],
+      [t('Aan/uit-knop'), t('In het menu: aan/uit-menu (nog een keer drukken = slaapstand). Tijdens een game: meteen slaapstand.')],
     ].map(([title, desc]) => h('div', { class: 'row static' }, rowText(title, desc)))));
   }
 

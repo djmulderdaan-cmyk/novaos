@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld('nova', {
   },
   onGameState: (cb) => ipcRenderer.on('game:state', (_e, s) => cb(s)),
   onOsd: (cb) => ipcRenderer.on('osd', (_e, d) => cb(d)),
+  onPowerButton: (cb) => ipcRenderer.on('power-button', () => cb()),
   sysSwap: call('pad:sysswap'),
   onSysSwap: (cb) => ipcRenderer.on('pad:sysswap', (_e, on) => cb(on)),
   updates: {
