@@ -67,10 +67,13 @@ function createWindow() {
     if (rendererCrashes.length > 3) { console.log('[ui] te vaak gecrasht, shell herstarten'); app.exit(1); return; }
     setTimeout(() => { if (win && !win.isDestroyed()) win.webContents.reload(); }, 800);
   });
+  let hangTimer = null;
   win.webContents.on('unresponsive', () => {
-    console.log('[ui] reageert niet, herladen over 5 s');
-    setTimeout(() => { if (win && !win.isDestroyed() && win.webContents.isCrashed && !win.webContents.isCrashed()) win.webContents.forcefullyCrashRenderer(); }, 5000);
+    console.log('[ui] reageert niet, herladen over 8 s als dat zo blijft');
+    clearTimeout(hangTimer);
+    hangTimer = setTimeout(() => { if (win && !win.isDestroyed()) win.webContents.forcefullyCrashRenderer(); }, 8000);
   });
+  win.webContents.on('responsive', () => clearTimeout(hangTimer));
 
   // Externe links nooit in de shell openen
   win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));

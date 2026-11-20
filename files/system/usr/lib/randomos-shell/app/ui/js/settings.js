@@ -361,7 +361,7 @@ async function renderCat() {
     out.push(group(t('Bronnen'), ...counts.map(([src, n]) => h('div', { class: 'row static' }, h('span', { class: `badge ${src}` }, SOURCE_NAMES[src]), h('div', { class: 'r-main' }), h('span', { class: 'r-val' }, n === 1 ? t('1 game') : t('{n} games', { n }))))));
     out.push(group(t('Acties'),
       actionRow(t('Bibliotheek vernieuwen'), t('Zoek opnieuw naar geïnstalleerde games'), 'refresh', async () => { await loadGames(); rerenderAll(); renderCat(); toast(t('{n} games gevonden', { n: S.games.length })); }, P),
-      actionRow(t('Steam Big Picture openen'), t('Winkel, downloads en Steam-instellingen'), 'steam', () => nova.sys.openSteam(), P)));
+      actionRow(t('Steam Big Picture openen'), t('Winkel, downloads en Steam-instellingen'), 'steam', () => openSteamFront(), P)));
     out.push(group(t('Eigen games toevoegen'), h('div', { class: 'row static', style: { display: 'block', lineHeight: 1.6, color: 'var(--text-2)' } },
       ...tx('Ga naar de bureaubladmodus en zet je games in {file}. Epic-, GOG- en Amazon-games uit Heroic verschijnen vanzelf.', { file: h('b', { style: { color: 'var(--text)' } }, '~/.config/randomos/games.json') }))));
   }

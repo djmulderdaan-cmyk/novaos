@@ -25,7 +25,7 @@ Input.intercept((a) => {
 setInterval(() => {
   const s = S.settings;
   if (!document.body.classList.contains('ready')) return;
-  if (S.game || Input.textMode) { Idle.last = Date.now(); return; }
+  if (S.game || Input.textMode || S.steamFront || !document.hasFocus()) { Idle.last = Date.now(); return; }
   const idleMin = (Date.now() - Idle.last) / 60000;
   if (s.screensaver && !Idle.saver && idleMin >= s.screensaver) startScreensaver();
   if (s.autoSleep && !Idle.slept && idleMin >= s.autoSleep) {

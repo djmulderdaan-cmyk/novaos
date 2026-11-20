@@ -70,10 +70,26 @@ function ensureSteam() {
       if (!steamRunning() || ++tries > 40) {
         clearInterval(wait);
         for (const pid of steamPids()) { try { process.kill(pid, 'SIGTERM'); } catch {} }
-        setTimeout(() => { restartingSteam = false; startSteam(); gamescope.focusShell(); }, 1500);
+        setTimeout(() => { restartingSteam = false; startSteam(); if (!current) gamescope.focusShell(); }, 1500);
       }
     }, 500);
   }
+}
+
+// Welke Steam-games draaien er? Steam start elke game via "reaper SteamLaunch AppId=<id>".
+function runningSteamGames() {
+  const ids = new Set();
+  let pids;
+  try { pids = fs.readdirSync('/proc').filter((x) => /^\d+$/.test(x)); } catch { return ids; }
+  for (const pid of pids) {
+    try {
+      const cmd = fs.readFileSync(`/proc/${pid}/cmdline`, 'latin1');
+      if (!cmd.includes('SteamLaunch')) continue;
+      const m = cmd.match(/AppId=(\d+)/);
+      if (m) ids.add(m[1]);
+    } catch {}
+  }
+  return ids;
 }
 
 function runningSteamAppId() {
@@ -99,7 +115,15 @@ function rememberPlayed(id) {
   settings.save({ recent: { ...s.recent, [id]: Date.now() } });
 }
 
+// Game vooraan zetten en onthouden hoe, zodat de bewaker het kan herstellen
+function focusCurrentGame(appid, pidsFn, opts) {
+  if (current) current.focus = { appid, pidsFn, opts };
+  gamescope.focusGame(appid, pidsFn, opts);
+}
+
 function launch(game) {
+  clearInterval(loginTimer);
+  clearInterval(steamFrontTimer);
   if (!game) return { error: 'Game niet gevonden' };
   if (current) return { error: `${current.game.title} draait al` };
   rememberPlayed(game.id);
@@ -111,16 +135,17 @@ function launch(game) {
     // niet-Steam-game uit Steam (bv. een .exe met Proton): via Steam starten
     ensureSteam();
     spawn('steam', [`steam://rungameid/${l.gameid}`], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
-    gamescope.focusGame(l.appid, () => [...processesWithEnv('SteamGameId', l.gameid), ...processesWithEnv('SteamAppId', l.appid)], { withSteam: true });
+    focusCurrentGame(l.appid, () => [...processesWithEnv('SteamGameId', l.gameid), ...processesWithEnv('SteamAppId', l.appid)], { withSteam: true });
   } else if (l.type === 'steam') {
     ensureSteam();
     spawn('steam', [`steam://rungameid/${l.appid}`], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
     // game-vensters herkennen aan SteamAppId en vooraan zetten
-    gamescope.focusGame(l.appid, () => processesWithEnv('SteamAppId', l.appid), { withSteam: true });
+    focusCurrentGame(l.appid, () => processesWithEnv('SteamAppId', l.appid), { withSteam: true });
   } else {
     const env = { ...process.env, SteamGameId: fakeAppId(game.id), SteamAppId: fakeAppId(game.id), RANDOMOS_GAME: game.id };
     let child;
     if (l.type === 'heroic') {
+      try { l.flatpak ? execFileSync('flatpak', ['kill', 'com.heroicgameslauncher.hgl'], { stdio: 'ignore', timeout: 5000 }) : execFileSync('pkill', ['-x', 'heroic'], { stdio: 'ignore' }); } catch {}
       const url = `heroic://launch/${l.runner}/${encodeURIComponent(l.app)}`;
       child = l.flatpak
         ? spawn('flatpak', ['run', 'com.heroicgameslauncher.hgl', '--no-gui', url], { env, detached: true, stdio: 'ignore' })
@@ -132,7 +157,7 @@ function launch(game) {
     child.on('error', () => finish('Kon de game niet starten'));
     child.unref();
     current.child = child;
-    gamescope.focusGame(fakeAppId(game.id), () => gamePids(game.id));
+    focusCurrentGame(fakeAppId(game.id), () => gamePids(game.id));
   }
   startPolling();
   return { ok: true };
@@ -154,9 +179,10 @@ function startPolling() {
         finish('De game is niet gestart (Steam reageerde niet)');
       }
     } else if (current.game.launch.type === 'steam') {
-      const running = runningSteamAppId();
-      if (running === current.game.launch.appid) {
-        if (current.phase !== 'running') update({ phase: 'running', sawRunning: true });
+      const id = current.game.launch.appid;
+      const running = runningSteamGames().has(id) || runningSteamAppId() === id ? id : null;
+      if (running === id) {
+        if (current.phase !== 'running' || !current.sawRunning) update({ phase: 'running', sawRunning: true });
       } else if (current.sawRunning) {
         finish();
       } else if (age > 120000) {
@@ -270,7 +296,7 @@ function steamLogin() {
     const st = steamStatus();
     if (st.loggedIn || Date.now() - started > 15 * 60000) {
       clearInterval(loginTimer);
-      gamescope.focusShell();
+      if (!current) gamescope.focusShell();
       steamEmit(st);
     }
   }, 3000);
@@ -302,6 +328,18 @@ function restartSteam(reason) {
   }, 500);
 }
 
+// Een via Steam/Big Picture gestarte game "overnemen": RandomOS weet dan dat hij draait en zet hem vooraan
+function adoptSteamGame(appid) {
+  let game = null;
+  try { game = require('./games').listAll().find((g) => g.launch && g.launch.appid === appid && g.launch.type === 'steam'); } catch {}
+  if (!game) game = { id: `steam:${appid}`, title: 'Game', source: 'steam', art: { cover: [], hero: [], logo: [], header: [] }, launch: { type: 'steam', appid } };
+  console.log(`[launcher] game ${appid} draait (gestart via Steam), overnemen`);
+  current = { game, phase: 'running', startedAt: Date.now(), sawRunning: true, child: null, adopted: true };
+  emit(publicState());
+  focusCurrentGame(appid, () => processesWithEnv('SteamAppId', appid));
+  startPolling();
+}
+
 function watchdog() {
   // Steam-interface gecrasht? (alleen als er geen game draait en Steam al even aan staat)
   if (!current && steamRunning() && Date.now() - steamStartedAt > 90000) {
@@ -324,9 +362,18 @@ function watchdog() {
     // Steam mag niet zelf de interface gaan spelen (Big Picture + focus overnemen)
     if (!current && steamInGamescopeMode()) ensureSteam();
   }
-  if (!current) gamescope.ensure();
+  if (current && current.phase === 'running' && current.focus && gamescope.active && gamescope.mode === 'shell') {
+    console.log('[watchdog] game draait maar shell stond vooraan, game terugzetten');
+    const f = current.focus;
+    gamescope.focusGame(f.appid, f.pidsFn, f.opts);
+  }
+  if (!current) {
+    const ext = [...runningSteamGames()].find((id) => id !== '0');
+    if (ext) { adoptSteamGame(ext); return; }
+    gamescope.ensure();
+  }
   // Steam vooraan maar geen groot Steam-venster meer open (Big Picture/inlogscherm gesloten)? Terug naar de shell.
-  if (!current && gamescope.mode === 'steam' && !steamWindowOpen()) {
+  if (!current && gamescope.mode === 'steam' && !steamFrontTimer && !steamWindowOpen()) {
     console.log('[watchdog] Steam-venster gesloten, terug naar RandomOS');
     gamescope.focusShell();
     steamEmit(steamStatus());
@@ -363,13 +410,14 @@ function watchSteamFront() {
   let misses = 0;
   const started = Date.now();
   steamFrontTimer = setInterval(() => {
-    if (gamescope.mode !== 'steam') { clearInterval(steamFrontTimer); return; }
+    if (gamescope.mode !== 'steam') { clearInterval(steamFrontTimer); steamFrontTimer = null; return; }
     const open = steamWindowOpen();
     if (open) { seen = true; misses = 0; } else misses++;
     // even tijd geven om te openen (Big Picture kan een paar seconden duren), en
     // pas na 2 keer achter elkaar "dicht" terug (wisselen naar de Store duurt even)
-    if (!open && misses >= 2 && (seen || Date.now() - started > 20000)) {
+    if (!open && misses >= 2 && (seen || Date.now() - started > 25000)) {
       clearInterval(steamFrontTimer);
+      steamFrontTimer = null;
       console.log('[steam] venster dicht/geminimaliseerd, terug naar RandomOS');
       gamescope.focusShell();
       steamEmit(steamStatus());

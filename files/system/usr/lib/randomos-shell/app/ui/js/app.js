@@ -45,6 +45,7 @@ const UI = {
   closeModal(modal) {
     const i = S.modals.indexOf(modal);
     if (i === -1) return;
+    if (typeof launchModal !== 'undefined' && modal === launchModal) launchModal = null;
     S.modals.splice(i, 1);
     modal.classList.add('closing');
     setTimeout(() => modal.remove(), 200);
@@ -83,7 +84,7 @@ async function boot() {
   updateHints();
   const st = await nova.games.state();
   if (st) onGameState(st);
-  setInterval(refreshStatus, 10000);
+  setInterval(() => { if (!document.body.classList.contains('sleeping') && document.hasFocus()) refreshStatus(); }, 10000);
   // Nieuw geïnstalleerde (of verwijderde) games vanzelf laten verschijnen
   setInterval(async () => {
     if (S.game || UI.top() || Input.textMode) return;
@@ -120,7 +121,7 @@ function setSleeping(on) {
   Input.lowPower = on;
   if (on) Ambient.stop(); else applySettings();
 }
-window.addEventListener('blur', () => { if (S.game && S.game.phase === 'running') setSleeping(true); });
+window.addEventListener('blur', () => { if ((S.game && S.game.phase === 'running') || S.steamFront) setSleeping(true); });
 window.addEventListener('focus', () => setSleeping(false));
 
 async function loadCustomSounds() {
@@ -449,7 +450,7 @@ function showLaunch(g, phase) {
     h('div', { class: 'launch-actions' },
       h('button', { class: 'btn primary', 'data-focus': true, id: 'resumeBtn', style: { display: 'none' }, onclick: () => resumeGame() }, h('span', { class: 'ico play' }), t('Hervatten')),
       h('button', { class: 'btn ghost', 'data-focus': true, onclick: stopGame }, h('span', { class: 'ico stop' }), t('Game stoppen'))));
-  launchModal = UI.openModal(box, { className: 'launch', sticky: true, onBack: () => { if (S.overGame) resumeGame(); } });
+  launchModal = UI.openModal(box, { className: 'launch', sticky: true, focus: () => Focus.clear(), onBack: () => { if (S.overGame) resumeGame(); } });
   setBackground(g.art.hero);
   updateLaunch(phase);
 }
@@ -492,6 +493,7 @@ async function stopGame() {
 
 function onGameState(st) {
   if (st && st.phase) {
+    S.steamFront = false; // er draait een game: Steam staat niet meer 'vooraan'
     const prev = S.game;
     S.game = st;
     const g = S.games.find((x) => x.id === st.id);
@@ -596,6 +598,8 @@ function handleAction(a, extra = {}) {
   Sounds.unlock();
   if (extra.source === 'pad' && (!S.settings.pad || S.settings.pad === 'auto') && document.body.dataset.pad !== Input.lastStyle) applyPadStyle(Input.lastStyle);
 
+  // Staat er iets anders vooraan (game, Steam)? Dan alleen de Home-knop gebruiken.
+  if (!document.hasFocus() && !['guide', 'guide-up', 'guide-long'].includes(a)) return;
   // Tijdens een game staat de shell op de achtergrond: alleen "Home ingedrukt houden" doet iets
   if (S.game && S.game.phase === 'running' && !document.hasFocus()) {
     if (a === 'guide-long') stopGame();
@@ -620,6 +624,7 @@ function handleAction(a, extra = {}) {
       }
       return;
     case 'a':
+      if (extra.repeat) return;
       if (Focus.current) { Input.rumble(); Focus.current.click(); }
       return;
     case 'b':
@@ -646,7 +651,7 @@ function handleAction(a, extra = {}) {
       return;
     case 'guide':
       if (S.overGame) return; // afgehandeld bij loslaten (guide-up)
-      if (S.steamFront) { S.steamFront = false; nova.sys.focusShell(); return; }
+      if (S.steamFront && !S.game) { S.steamFront = false; nova.sys.focusShell(); return; }
       UI.closeAll();
       if (S.tab !== 'home') switchTab('home'); else Focus.first('rail');
       return;

@@ -61,7 +61,7 @@ const CDN = [
 function steamArt(root, appid) {
   const lc = path.join(root, 'appcache', 'librarycache');
   const kinds = {
-    cover: ['library_600x900_2x.jpg', 'library_600x900.jpg', 'library_capsule.jpg'],
+    cover: ['library_600x900.jpg', 'library_600x900_2x.jpg', 'library_capsule.jpg'],
     hero: ['library_hero.jpg'],
     logo: ['logo.png', 'logo_2x.png'],
     header: ['header.jpg'],

@@ -15,6 +15,7 @@ let shellXid = null;
 let tagTimer = null;
 let mode = 'shell'; // 'shell' | 'steam' | 'game' | 'overlay'
 let lastGame = null; // { id, withSteam }
+let pendingGame = null; // focusGame die binnenkwam voordat init klaar was
 
 function run(cmd, args, display = process.env.DISPLAY) {
   return new Promise((resolve) => {
@@ -38,13 +39,20 @@ async function init(xid) {
   if (!active) return false; // niet in gamescope (bv. test op het bureaublad)
   shellXid = xid;
   await tagWindow(xid, SHELL_APPID);
-  await setBaselayer([SHELL_APPID]);
+  if (pendingGame) {
+    const g = pendingGame;
+    pendingGame = null;
+    focusGame(g.appid, g.pidsFn, g.opts);
+  } else {
+    await setBaselayer([SHELL_APPID]);
+  }
   return true;
 }
 
 // Shell weer vooraan
 async function focusShell() {
   mode = 'shell';
+  pendingGame = null;
   stopTagging();
   if (shellXid) await tagWindow(shellXid, SHELL_APPID);
   await setBaselayer([SHELL_APPID]);
@@ -59,15 +67,22 @@ async function focusSteam() {
 // Game vooraan. pidsFn() geeft de processen van de game; hun vensters krijgen het app-nummer.
 // withSteam: Steam-vensters (voorwaarden, updates, cloud-saves) mogen tijdens het starten zichtbaar zijn;
 // zodra het game-venster er is, staat de game vooraan (eerste in de lijst).
-function focusGame(appid, pidsFn, { withSteam = false } = {}) {
+function focusGame(appid, pidsFn, opts = {}) {
+  const { withSteam = false } = opts;
   stopTagging();
+  if (!active) { pendingGame = { appid, pidsFn, opts }; return; }
   mode = 'game';
-  if (!active) return;
   const id = Number(appid);
   lastGame = { id, withSteam };
   setBaselayer(withSteam ? [id, STEAM_APPID, SHELL_APPID] : [id, SHELL_APPID]);
   const tagged = new Set();
+  let busy = false;
+  let firstTag = 0;
+  const started = Date.now();
   const tick = async () => {
+    if (busy) return;
+    busy = true;
+    try {
     for (const pid of pidsFn()) {
       for (const display of DISPLAYS) {
         const out = await run('xdotool', ['search', '--pid', String(pid)], display);
@@ -77,12 +92,16 @@ function focusGame(appid, pidsFn, { withSteam = false } = {}) {
           if (tagged.has(key)) continue;
           tagged.add(key);
           await tagWindow(w, id, display);
+          if (!firstTag) firstTag = Date.now();
         }
       }
     }
+    } finally { busy = false; }
+    // vensters zijn gelabeld: na 30 s stoppen (scheelt CPU tijdens het gamen); max 3 minuten zoeken
+    if ((firstTag && Date.now() - firstTag > 30000) || Date.now() - started > 180000) stopTagging();
   };
   tick();
-  tagTimer = setInterval(tick, 1500);
+  tagTimer = setInterval(tick, 2000);
 }
 
 // Shell tonen terwijl de game op de achtergrond blijft draaien
