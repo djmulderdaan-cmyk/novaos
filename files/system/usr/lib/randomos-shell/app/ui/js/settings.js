@@ -282,6 +282,7 @@ async function renderCat() {
       choiceRow(t('Screensaver'), t('Na hoe lang niks doen'), [[0, t('Uit')], [2, '2 min'], [5, '5 min'], [10, '10 min']], s.screensaver == null ? 5 : s.screensaver, set('screensaver'), P),
       choiceRow(t('Automatisch slapen'), t('Niet tijdens het gamen'), [[0, t('Nooit')], [15, '15 min'], [30, '30 min'], [60, t('1 uur')]], s.autoSleep || 0, set('autoSleep'), P),
       toggleRow(t('Waarschuwing bij lage batterij'), t('Bij 15% en 5%'), s.lowBattery !== false, set('lowBattery'), P),
+      await sleepTimerRow(P),
       actionRow(t('Screensaver nu bekijken'), null, 'moon', () => startScreensaver(), P)));
   }
 

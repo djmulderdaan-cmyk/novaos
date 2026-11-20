@@ -142,6 +142,21 @@ handle('sys:steam-status', () => launcher.steamStatus());
 handle('sys:steam-login', () => launcher.steamLogin());
 handle('sys:focus-shell', () => launcher.focusShell());
 handle('perf:overlay', (level) => overlay.setLevel(level));
+
+// Slaaptimer: na X minuten gaat de laptop slapen (ook tijdens een game)
+let sleepTimer = null, sleepAt = 0, sleepMin = 0;
+handle('sys:sleep-timer', (min) => {
+  clearTimeout(sleepTimer); sleepAt = 0; sleepMin = 0;
+  min = Number(min) || 0;
+  if (min > 0 && min <= 600) {
+    sleepMin = min;
+    sleepAt = Date.now() + min * 60000;
+    sleepTimer = setTimeout(() => { sleepAt = 0; sleepMin = 0; console.log('[slaaptimer] tijd om te slapen'); system.power('suspend', app); }, min * 60000);
+    console.log(`[slaaptimer] over ${min} min slapen`);
+  }
+  return { at: sleepAt, min: sleepMin };
+});
+handle('sys:sleep-timer-get', () => ({ at: sleepAt, min: sleepMin }));
 handle('perf:available', () => overlay.available());
 handle('upd:status', () => updates.status());
 handle('upd:check', () => updates.check());

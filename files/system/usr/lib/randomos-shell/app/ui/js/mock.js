@@ -67,6 +67,8 @@ if (!window.nova) {
     profile: async () => ({ name: cfg.name || t('Speler'), avatar: null }),
     settings: { get: async () => ({ ...cfg }), set: async (p) => { cfg = { ...cfg, ...p }; saveCfg(); return { ...cfg }; } },
     sys: {
+      sleepTimer: async (min) => (min ? { at: Date.now() + min * 60000, min } : { at: 0, min: 0 }),
+      sleepTimerGet: async () => ({ at: 0, min: 0 }),
       status: async () => ({
         battery: { level: 76, status: 'Discharging' },
         wifi: { available: true, enabled: wifiOn, ssid: wifiOn ? 'Thuisnetwerk' : null, signal: 78 },

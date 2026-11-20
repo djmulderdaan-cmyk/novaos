@@ -17,7 +17,7 @@ let pollTimer = null;
 
 function setEmitter(fn) { emit = fn; }
 function publicState() {
-  return current ? { id: current.game.id, title: current.game.title, phase: current.phase } : null;
+  return current ? { id: current.game.id, title: current.game.title, phase: current.phase, startedAt: current.startedAt } : null;
 }
 function update(patch) {
   current = patch === null ? null : { ...current, ...patch };

@@ -40,6 +40,8 @@ contextBridge.exposeInMainWorld('nova', {
     steamStatus: call('sys:steam-status'),
     steamLogin: call('sys:steam-login'),
     focusShell: call('sys:focus-shell'),
+    sleepTimer: call('sys:sleep-timer'),
+    sleepTimerGet: call('sys:sleep-timer-get'),
   },
   onGameState: (cb) => ipcRenderer.on('game:state', (_e, s) => cb(s)),
   sysSwap: call('pad:sysswap'),

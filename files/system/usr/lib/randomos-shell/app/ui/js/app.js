@@ -361,7 +361,10 @@ async function setBackground(urls) {
 function libraryGames() {
   let list = S.games.filter((g) => !isHidden(g)).filter((g) => S.filter === 'all' || (S.filter === 'fav' ? g.favorite : g.source === S.filter));
   if (S.query) { const q = S.query.toLowerCase(); list = list.filter((g) => g.title.toLowerCase().includes(q)); }
-  return list.sort(S.sort === 'az' ? (a, b) => a.title.localeCompare(b.title) : (a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0) || a.title.localeCompare(b.title));
+  const byName = (a, b) => a.title.localeCompare(b.title);
+  if (S.sort === 'az') return list.sort(byName);
+  if (S.sort === 'played') return list.sort((a, b) => (b.playtime || 0) - (a.playtime || 0) || byName(a, b));
+  return list.sort((a, b) => (b.lastPlayed || 0) - (a.lastPlayed || 0) || byName(a, b));
 }
 
 function renderLibrary() {
@@ -374,7 +377,7 @@ function renderLibrary() {
     c.addEventListener('click', () => { S.filter = id; Sounds.select(); keepFocus(chips, renderLibrary); });
     chips.append(c);
   }
-  $('#sortLabel').textContent = S.sort === 'az' ? 'A–Z' : t('Recent');
+  $('#sortLabel').textContent = S.sort === 'az' ? 'A–Z' : S.sort === 'played' ? t('Meest gespeeld') : t('Recent');
   $('#searchLabel').textContent = S.query ? `“${S.query}”` : t('Zoeken');
 
   const grid = $('#libGrid');
@@ -390,7 +393,7 @@ function renderLibrary() {
   for (const g of list) grid.append(tile(g, { group: 'grid', onPress: openDetail }));
 }
 
-$('#sortBtn').addEventListener('click', () => { S.sort = S.sort === 'az' ? 'recent' : 'az'; Sounds.select(); keepFocus($('#screen-library'), renderLibrary); });
+$('#sortBtn').addEventListener('click', () => { S.sort = S.sort === 'recent' || !S.sort ? 'az' : S.sort === 'az' ? 'played' : 'recent'; Sounds.select(); keepFocus($('#screen-library'), renderLibrary); });
 $('#searchBtn').addEventListener('click', async () => {
   Sounds.select();
   const q = await OSK.open({ title: t('Zoek in je bibliotheek'), value: S.query, placeholder: t('Naam van de game') });
@@ -574,14 +577,33 @@ async function openQuickMenu() {
       h('div', { class: 'qm-card' }, h('div', { class: 'k' }, t('Batterij')), h('div', { class: 'v' }, s.battery ? (s.battery.status === 'Charging' ? t('{n}% · laadt', { n: s.battery.level }) : `${s.battery.level}%`) : t('Netstroom'))),
       h('div', { class: 'qm-card' }, h('div', { class: 'k' }, t('Wifi')), h('div', { class: 'v' }, s.wifi.enabled ? (s.wifi.ssid || t('Niet verbonden')) : t('Uit')))),
   ];
+  if (S.game) {
+    const mins = S.game.startedAt ? Math.max(0, Math.round((Date.now() - S.game.startedAt) / 60000)) : 0;
+    items.push(h('div', { class: 'qm-card qm-now' }, h('div', { class: 'k' }, t('Nu aan het spelen')),
+      h('div', { class: 'v' }, S.game.title), h('div', { class: 'k' }, mins < 1 ? t('Net begonnen') : mins < 60 ? t('{n} min', { n: mins }) : t('{h} uur {m} min', { h: Math.floor(mins / 60), m: mins % 60 }))));
+  }
   if (s.volume.available) items.push(sliderRow(t('Volume'), s.volume.level, (v) => nova.sys.volume(v)));
   if (s.brightness.available) items.push(sliderRow(t('Helderheid'), s.brightness.level, (v) => nova.sys.brightness(v), { min: 5 }));
   items.push(perfOverlayRow('qm'));
+  items.push(await sleepTimerRow('qm'));
   if (S.game) items.push(actionRow(t('{title} stoppen', { title: S.game.title }), t('Sluit de game die nu draait'), 'stop', () => { UI.closeModal(modal); stopGame(); }, 'qm'));
   items.push(actionRow(t('Instellingen'), null, 'apps', () => { UI.closeModal(modal); switchTab('settings'); }, 'qm'));
   items.push(actionRow(t('Aan/uit'), null, 'power', () => { UI.closeModal(modal); openPower(); }, 'qm'));
   let modal;
   modal = UI.openModal(h('div', { class: 'sheet' }, ...items), { className: 'drawer', onAction: (a) => { if (a === 'y') { Sounds.back(); UI.closeModal(modal); return true; } return false; } });
+}
+
+// ================================================================ slaaptimer
+async function sleepTimerRow(group) {
+  const st = (nova.sys.sleepTimerGet ? await nova.sys.sleepTimerGet().catch(() => null) : null) || { at: 0, min: 0 };
+  const when = (at) => new Date(at).toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit', hour12: !!S.settings.clock12 });
+  const desc = st.at ? t('Slaapt om {time}', { time: when(st.at) }) : t('Vanzelf slapen');
+  const row = choiceRow(t('Slaaptimer'), desc, [[0, t('Uit')], [30, '30m'], [60, t('1u')], [120, t('2u')]], st.at ? st.min : 0, async (min) => {
+    const r = await nova.sys.sleepTimer(min);
+    const d = $('.r-desc', row);
+    if (d) d.textContent = r && r.at ? t('Slaapt om {time}', { time: when(r.at) }) : t('Vanzelf slapen');
+  }, group);
+  return row;
 }
 
 // ================================================================ aan/uit
