@@ -183,6 +183,14 @@ main { position: relative; overflow: hidden; }
 .shot-sheet .d-actions { justify-content: center; }
 .ico.camera { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/><circle cx='12' cy='13' r='3.6' fill='none' stroke='black' stroke-width='2'/></svg>"); }
 .ico.image { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='3' y='4' width='18' height='16' rx='3' fill='none' stroke='black' stroke-width='2'/><circle cx='9' cy='9.5' r='1.8'/><path d='M4 18l5-5 4 4 3-3 4 4'  fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/></svg>"); }
+.st-pad { display: inline-flex; align-items: center; gap: 4px; font-size: .85rem; }
+.st-pad .ico { width: 18px; height: 18px; }
+.st-pad.low { color: #ff7a8a; }
+.dl-bar { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .12); overflow: hidden; margin-top: 8px; width: 100%; }
+.dl-fill { height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width .6s var(--ease-out); }
+.dl-list { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 18px; }
+.dl-row .r-main { width: 100%; }
+.ico.download { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 3v12M7 10l5 5 5-5' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/><path d='M4 19h16' stroke='black' stroke-width='2.2' stroke-linecap='round'/></svg>"); }
 .app-ico { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; margin-right: 14px; flex: 0 0 auto; }
 .ico.dice { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='3' y='3' width='18' height='18' rx='4' fill='none' stroke='black' stroke-width='2'/><circle cx='8' cy='8' r='1.6'/><circle cx='16' cy='8' r='1.6'/><circle cx='12' cy='12' r='1.6'/><circle cx='8' cy='16' r='1.6'/><circle cx='16' cy='16' r='1.6'/></svg>"); }
 .ico.trash { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/></svg>"); }

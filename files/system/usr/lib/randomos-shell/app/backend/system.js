@@ -24,6 +24,24 @@ function battery() {
   return { level: Number(read(`${base}/capacity`) || 0), status: read(`${base}/status`) || 'Unknown' };
 }
 
+// Batterij van draadloze controllers (Xbox/PlayStation/Switch via Bluetooth of dongle)
+const LEVELS = { Full: 100, High: 75, Normal: 50, Low: 20, Critical: 5 };
+function padBatteries() {
+  let dirs;
+  try { dirs = fs.readdirSync('/sys/class/power_supply'); } catch { return []; }
+  const out = [];
+  for (const d of dirs) {
+    const base = `/sys/class/power_supply/${d}`;
+    if ((read(`${base}/scope`) || '') !== 'Device') continue;
+    const cap = read(`${base}/capacity`);
+    const lvl = cap != null && cap !== '' ? Number(cap) : LEVELS[read(`${base}/capacity_level`) || ''];
+    if (lvl == null || Number.isNaN(lvl)) continue;
+    const status = read(`${base}/status`) || '';
+    out.push({ name: read(`${base}/model_name`) || d, level: lvl, charging: /Charging|Full/.test(status) });
+  }
+  return out;
+}
+
 // nmcli -t escapet ':' als '\:'
 function splitTerse(line) {
   const out = [];
@@ -64,7 +82,7 @@ async function bluetooth() {
 
 async function status() {
   const [wifi, vol, bright, bt] = await Promise.all([wifiStatus(), volume(), brightness(), bluetooth()]);
-  return { battery: battery(), wifi, volume: vol, brightness: bright, bluetooth: bt };
+  return { battery: battery(), pads: padBatteries(), wifi, volume: vol, brightness: bright, bluetooth: bt };
 }
 
 async function info() {

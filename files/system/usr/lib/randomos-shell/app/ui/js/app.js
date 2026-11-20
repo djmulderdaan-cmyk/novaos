@@ -92,7 +92,8 @@ async function boot() {
     await loadGames();
     const after = S.games.map((g) => g.id).sort().join('|');
     if (before !== after) {
-      const added = S.games.filter((g) => !before.split('|').includes(g.id));
+      // games die via de downloads al een melding kregen, niet nog eens melden
+      const added = S.games.filter((g) => !before.split('|').includes(g.id) && !(g.launch && S.dlSeen.has(String(g.launch.appid))));
       rerenderAll();
       if (added.length) toast(t('Nieuw in je bibliotheek: {name}', { name: added.map((g) => g.title).join(', ') }), { icon: 'check', ms: 5000 });
     }
@@ -192,6 +193,18 @@ async function refreshStatus() {
   bt.innerHTML = ICONS.bt();
   bt.classList.toggle('off', !s.bluetooth.enabled);
   bt.style.display = s.bluetooth.available ? '' : 'none';
+  // controllerbatterij: laagste van de verbonden draadloze controllers
+  const pad = $('#stPad');
+  if (pad) {
+    const pads = s.pads || [];
+    if (pads.length) {
+      const low = pads.reduce((a, b) => (b.level < a.level ? b : a));
+      pad.style.display = '';
+      pad.classList.toggle('low', low.level <= 20 && !low.charging);
+      pad.innerHTML = `<span class="ico gamepad"></span><span>${low.level}%</span>`;
+      pad.title = pads.map((p) => `${p.name}: ${p.level}%`).join('\n');
+    } else pad.style.display = 'none';
+  }
   const batt = $('#stBatt');
   if (s.battery) {
     batt.style.display = '';
@@ -272,7 +285,7 @@ function renderHome() {
     t.addEventListener('focusin-nova', () => setHeroDebounced(game(t)));
     rail.append(t);
   }
-  const more = h('button', { class: 'tile wide', 'data-focus': true, 'data-group': 'rail', onclick: () => switchTab('library') },
+  const more = h('button', { class: 'tile wide', 'data-more': '', 'data-focus': true, 'data-group': 'rail', onclick: () => switchTab('library') },
     h('div', { class: 'more' }, h('span', { class: 'ico apps' }), h('span', {}, t('Alle games')), h('span', { style: { color: 'var(--text-3)', fontSize: '.85rem' } }, t('{n} geïnstalleerd', { n: S.games.length }))));
   rail.append(more);
   // Vaste tegel naar Steam (winkel, bibliotheek, downloads)
@@ -287,7 +300,80 @@ function renderHome() {
     h('div', { class: 'more' }, h('span', { class: 'ico image' }), h('span', {}, t('Album')), h('span', { style: { color: 'var(--text-3)', fontSize: '.85rem' } }, t('Je screenshots'))));
   rail.append(albumTile);
   if (!S.hero || !list.find((g) => g.id === S.hero.id)) setHero(list[0]);
+  updateDownloadsTile();
 }
+
+// ================================================================ downloads
+S.downloads = [];
+S.dlSeen = new Set(); // appids die we zagen downloaden
+const gb = (b) => `${(b / 1024 ** 3).toLocaleString(I18N.locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} GB`;
+function dlText(d) { return t('{done} van {total}', { done: gb(d.done), total: gb(d.total) }); }
+
+function updateDownloadsTile() {
+  const rail = $('#homeRail');
+  if (!rail) return;
+  let tileEl = $('#dlTile');
+  const list = S.downloads;
+  if (!list.length) { if (tileEl) tileEl.remove(); return; }
+  const done = list.reduce((n, d) => n + d.done, 0), total = list.reduce((n, d) => n + d.total, 0);
+  const pct = total ? Math.floor((done / total) * 100) : 0;
+  const label = list.length === 1 ? list[0].title : t('{n} downloads', { n: list.length });
+  if (!tileEl) {
+    tileEl = h('button', { id: 'dlTile', class: 'tile wide', 'data-focus': true, 'data-group': 'rail', onclick: () => openDownloads() },
+      h('div', { class: 'more' }, h('span', { class: 'ico download' }), h('span', { class: 'dl-title' }), h('span', { class: 'dl-sub', style: { color: 'var(--text-3)', fontSize: '.85rem' } }),
+        h('div', { class: 'dl-bar' }, h('div', { class: 'dl-fill' }))));
+    const anchor = $('[data-more]', rail);
+    if (anchor) rail.insertBefore(tileEl, anchor); else rail.append(tileEl);
+  }
+  $('.dl-title', tileEl).textContent = label;
+  $('.dl-sub', tileEl).textContent = t('Downloaden… {pct}%', { pct });
+  $('.dl-fill', tileEl).style.width = pct + '%';
+}
+
+let dlModal = null;
+function openDownloads() {
+  Sounds.open();
+  const body = h('div', { class: 'dl-list' });
+  const paint = () => {
+    body.innerHTML = '';
+    if (!S.downloads.length) { body.append(h('p', { class: 'sub' }, t('Er wordt niets gedownload.'))); return; }
+    for (const d of S.downloads) {
+      body.append(h('div', { class: 'row static dl-row' },
+        h('div', { class: 'r-main' }, h('div', { class: 'r-title' }, d.title + (d.update ? ' · ' + t('update') : '')), h('div', { class: 'r-desc' }, dlText(d)),
+          h('div', { class: 'dl-bar' }, h('div', { class: 'dl-fill', style: { width: d.pct + '%' } }))),
+        h('span', { class: 'r-val' }, d.pct + '%')));
+    }
+  };
+  paint();
+  dlModal = UI.openModal(h('div', { class: 'sheet power-sheet', style: { maxWidth: '640px' } },
+    h('h2', {}, t('Downloads')), body,
+    h('div', { class: 'd-actions' },
+      h('button', { class: 'btn ghost', 'data-focus': true, onclick: () => { UI.closeModal(dlModal); openSteamFront(); } }, h('span', { class: 'ico steam' }), t('Steam openen')),
+      h('button', { class: 'btn primary', 'data-focus': true, 'data-autofocus': true, onclick: () => { Sounds.back(); UI.closeModal(dlModal); } }, t('Sluiten')))));
+  dlModal._paint = paint;
+}
+
+async function pollDownloads() {
+  if (!nova.games.downloads) return;
+  const list = await nova.games.downloads().catch(() => null);
+  if (!list) return;
+  const prev = S.downloads;
+  S.downloads = list;
+  for (const d of list) S.dlSeen.add(String(d.appid));
+  const finished = prev.filter((p) => !list.some((d) => d.appid === p.appid));
+  if (finished.length) {
+    await loadGames();
+    rerenderAll();
+    for (const d of finished) {
+      const g = S.games.find((x) => x.launch && String(x.launch.appid) === String(d.appid) && x.installed !== false);
+      if (g) { Sounds.select(); toast(d.update ? t('{title} is bijgewerkt', { title: d.title }) : t('{title} is klaar om te spelen', { title: d.title }), { icon: 'check', ms: 5000 }); }
+    }
+  }
+  updateDownloadsTile();
+  if (dlModal && dlModal.isConnected && dlModal._paint) dlModal._paint();
+}
+setInterval(() => { if (!document.body.classList.contains('sleeping')) pollDownloads(); }, 5000);
+setTimeout(pollDownloads, 2500);
 const game = (el) => el._game;
 
 // "Verras me": een willekeurige game uit je bibliotheek (niet twee keer achter elkaar dezelfde)
@@ -579,6 +665,7 @@ async function openQuickMenu() {
     h('div', { class: 'qm-cards' },
       h('div', { class: 'qm-card' }, h('div', { class: 'k' }, t('Batterij')), h('div', { class: 'v' }, s.battery ? (s.battery.status === 'Charging' ? t('{n}% · laadt', { n: s.battery.level }) : `${s.battery.level}%`) : t('Netstroom'))),
       h('div', { class: 'qm-card' }, h('div', { class: 'k' }, t('Wifi')), h('div', { class: 'v' }, s.wifi.enabled ? (s.wifi.ssid || t('Niet verbonden')) : t('Uit')))),
+    ...(s.pads || []).map((p) => h('div', { class: 'qm-card qm-now' }, h('div', { class: 'k' }, t('Controller')), h('div', { class: 'v' }, `${p.level}%${p.charging ? ' · ' + t('laadt') : ''}`), h('div', { class: 'k' }, p.name))),
   ];
   if (S.game) {
     const mins = S.game.startedAt ? Math.max(0, Math.round((Date.now() - S.game.startedAt) / 60000)) : 0;

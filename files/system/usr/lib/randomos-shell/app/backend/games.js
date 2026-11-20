@@ -337,6 +337,33 @@ function profile() {
   return { name: name || os.userInfo().username, avatar };
 }
 
+// ---------------------------------------------------------------- Steam-downloads
+/** Steam-games die nu downloaden of updaten (uit de appmanifests), met voortgang. */
+function listDownloads() {
+  const root = steamRoot();
+  if (!root) return [];
+  const out = [];
+  for (const lib of steamLibraries(root)) {
+    const dir = path.join(lib, 'steamapps');
+    let files;
+    try { files = fs.readdirSync(dir).filter((f) => /^appmanifest_\d+\.acf$/.test(f)); } catch { continue; }
+    for (const f of files) {
+      const text = readText(path.join(dir, f));
+      if (!text) continue;
+      const appid = vdfValue(text, 'appid');
+      const name = vdfValue(text, 'name');
+      if (!appid || !name || STEAM_SKIP_IDS.has(appid) || STEAM_SKIP.test(name)) continue;
+      const flags = Number(vdfValue(text, 'StateFlags') || 4);
+      const total = Number(vdfValue(text, 'BytesToDownload') || 0);
+      const done = Number(vdfValue(text, 'BytesDownloaded') || 0);
+      const busy = (flags & 4) !== 4 || (flags & 1024) === 1024 || (flags & 2) === 2;
+      if (!busy || !total || done >= total) continue;
+      out.push({ appid, title: name.trim(), total, done, pct: Math.max(0, Math.min(100, Math.floor((done / total) * 100))), update: (flags & 4) === 4 });
+    }
+  }
+  return out.sort((a, b) => b.pct - a.pct);
+}
+
 // ---------------------------------------------------------------- apps (flatpak) toevoegen
 const CUSTOM_FILE = path.join(settings.DIR, 'games.json');
 const FLATPAK_EXPORTS = [path.join(HOME, '.local/share/flatpak/exports/share'), '/var/lib/flatpak/exports/share'];
@@ -425,4 +452,4 @@ function removeCustom(gameId) {
   return { ok: true };
 }
 
-module.exports = { listAll, profile, steamRoot, listApps, addApp, removeCustom };
+module.exports = { listAll, profile, steamRoot, listApps, addApp, removeCustom, listDownloads };

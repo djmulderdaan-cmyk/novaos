@@ -1,3 +1,4 @@
+let dlDone = 1.2e9; const dlTotal = 4.6e9; // demo-download
 // Demo-modus: als de shell in een gewone browser draait (zonder Electron)
 // gebruiken we nepdata, zodat je de interface op Windows kunt bekijken.
 if (!window.nova) {
@@ -58,6 +59,10 @@ if (!window.nova) {
       stop: async () => { running = null; gameCb(null); return { ok: true }; },
       showShell: async () => ({ ok: true }),
       resume: async () => ({ ok: true }),
+      downloads: async () => {
+        dlDone = Math.min(dlTotal, dlDone + 180e6);
+        return dlDone < dlTotal ? [{ appid: '1145360', title: 'Hades', total: dlTotal, done: dlDone, pct: Math.floor((dlDone / dlTotal) * 100), update: false }] : [];
+      },
       apps: async () => [{ id: 'org.mozilla.firefox', name: 'Firefox', icon: null }, { id: 'org.kde.haruna', name: 'Haruna', icon: null }],
       addApp: async (id) => ({ ok: true, name: id }),
       remove: async () => ({ ok: true }),
@@ -79,6 +84,7 @@ if (!window.nova) {
       sleepTimer: async (min) => (min ? { at: Date.now() + min * 60000, min } : { at: 0, min: 0 }),
       sleepTimerGet: async () => ({ at: 0, min: 0 }),
       status: async () => ({
+        pads: [{ name: 'Xbox Wireless Controller', level: 62, charging: false }],
         battery: { level: 76, status: 'Discharging' },
         wifi: { available: true, enabled: wifiOn, ssid: wifiOn ? 'Thuisnetwerk' : null, signal: 78 },
         volume: { available: true, level: vol, muted },

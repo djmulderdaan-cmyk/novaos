@@ -137,6 +137,8 @@ Het hoofdmenu van RandomOS. Bediening:
 **Extra's:**
 - **Verras me** (Home): kiest een willekeurige game uit je bibliotheek
 - **Screenshots:** tijdens een game Home-knop → snelmenu → *Screenshot maken*. Ze staan in **Album** (Home) en in `~/Pictures/RandomOS`; Steam-screenshots staan er ook in
+- **Downloads:** Steam-downloads en -updates met voortgang op Home, en een melding als een game klaar is om te spelen
+- **Controllerbatterij** van draadloze controllers in de statusbalk en het snelmenu
 - **Unity- en .exe-games** zonder controller-ondersteuning: je controller werkt als toetsenbord en muis (per game aan/uit bij *Info*)
 
 **Toetsenbord & muis** werken ook overal:

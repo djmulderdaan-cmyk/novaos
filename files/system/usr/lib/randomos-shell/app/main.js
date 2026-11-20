@@ -110,6 +110,7 @@ handle('games:stop', () => launcher.stop());
 handle('games:show-shell', () => launcher.showShellOverGame());
 handle('games:resume', () => launcher.resumeGame());
 handle('games:apps', () => games.listApps());
+handle('games:downloads', () => games.listDownloads());
 handle('album:take', (title) => album.take(String(title || '')));
 handle('album:list', () => album.list());
 handle('album:remove', (p) => album.remove(String(p || '')));
