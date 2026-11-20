@@ -9,6 +9,7 @@ const gamescope = require('./backend/gamescope');
 const updates = require('./backend/updates');
 const overlay = require('./backend/overlay');
 const padswap = require('./backend/padswap');
+const album = require('./backend/album');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,SpareRendererForSitePerProcess');
@@ -109,6 +110,9 @@ handle('games:stop', () => launcher.stop());
 handle('games:show-shell', () => launcher.showShellOverGame());
 handle('games:resume', () => launcher.resumeGame());
 handle('games:apps', () => games.listApps());
+handle('album:take', (title) => album.take(String(title || '')));
+handle('album:list', () => album.list());
+handle('album:remove', (p) => album.remove(String(p || '')));
 handle('games:add-app', (id) => games.addApp(String(id || '')));
 handle('games:remove', (id) => games.removeCustom(String(id || '')));
 handle('games:state', () => launcher.state());

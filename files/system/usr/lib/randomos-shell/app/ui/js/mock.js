@@ -66,6 +66,15 @@ if (!window.nova) {
     customSounds: async () => ({ dir: '~/.config/randomos/sounds', sounds: {} }),
     profile: async () => ({ name: cfg.name || t('Speler'), avatar: null }),
     settings: { get: async () => ({ ...cfg }), set: async (p) => { cfg = { ...cfg, ...p }; saveCfg(); return { ...cfg }; } },
+    album: {
+      take: async () => ({ ok: true }),
+      list: async () => [
+        { url: 'img/mc-hero.jpg', path: '/x/Minecraft_1.png', game: 'Minecraft', source: 'randomos', date: Date.now() - 3600000 },
+        { url: 'img/mascot.png', path: '/x/RandomOS_2.png', game: 'RandomOS', source: 'randomos', date: Date.now() - 86400000 },
+        { url: 'img/mc-hero.jpg', path: '/x/steam_3.jpg', appid: '413150', source: 'steam', date: Date.now() - 3 * 86400000 },
+      ],
+      remove: async () => ({ ok: true }),
+    },
     sys: {
       sleepTimer: async (min) => (min ? { at: Date.now() + min * 60000, min } : { at: 0, min: 0 }),
       sleepTimerGet: async () => ({ at: 0, min: 0 }),

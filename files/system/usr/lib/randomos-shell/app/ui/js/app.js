@@ -283,6 +283,9 @@ function renderHome() {
   const dice = h('button', { class: 'tile wide', 'data-focus': true, 'data-group': 'rail', onclick: () => surprise() },
     h('div', { class: 'more' }, h('span', { class: 'ico dice' }), h('span', {}, t('Verras me')), h('span', { style: { color: 'var(--text-3)', fontSize: '.85rem' } }, t('Een willekeurige game'))));
   rail.append(dice);
+  const albumTile = h('button', { class: 'tile wide', 'data-focus': true, 'data-group': 'rail', onclick: () => openAlbum() },
+    h('div', { class: 'more' }, h('span', { class: 'ico image' }), h('span', {}, t('Album')), h('span', { style: { color: 'var(--text-3)', fontSize: '.85rem' } }, t('Je screenshots'))));
+  rail.append(albumTile);
   if (!S.hero || !list.find((g) => g.id === S.hero.id)) setHero(list[0]);
 }
 const game = (el) => el._game;
@@ -586,11 +589,88 @@ async function openQuickMenu() {
   if (s.brightness.available) items.push(sliderRow(t('Helderheid'), s.brightness.level, (v) => nova.sys.brightness(v), { min: 5 }));
   items.push(perfOverlayRow('qm'));
   items.push(await sleepTimerRow('qm'));
+  if (S.game && S.game.phase === 'running') items.push(actionRow(t('Screenshot maken'), t('Van {title}, zonder dit menu erop', { title: S.game.title }), 'camera', () => { UI.closeModal(modal); takeScreenshot(); }, 'qm'));
   if (S.game) items.push(actionRow(t('{title} stoppen', { title: S.game.title }), t('Sluit de game die nu draait'), 'stop', () => { UI.closeModal(modal); stopGame(); }, 'qm'));
   items.push(actionRow(t('Instellingen'), null, 'apps', () => { UI.closeModal(modal); switchTab('settings'); }, 'qm'));
   items.push(actionRow(t('Aan/uit'), null, 'power', () => { UI.closeModal(modal); openPower(); }, 'qm'));
   let modal;
   modal = UI.openModal(h('div', { class: 'sheet' }, ...items), { className: 'drawer', onAction: (a) => { if (a === 'y') { Sounds.back(); UI.closeModal(modal); return true; } return false; } });
+}
+
+// ================================================================ screenshots & album
+// Screenshot van de game: menu weg, game terug, even wachten, dan gamescope laten vastleggen.
+let pendingShot = null;
+async function takeScreenshot() {
+  const title = S.game ? S.game.title : '';
+  await resumeGame();
+  setTimeout(async () => {
+    const r = await nova.album.take(title).catch(() => null);
+    pendingShot = r && r.ok ? 'ok' : 'fail';
+    if (document.hasFocus()) showPendingShot();
+  }, 700);
+}
+function showPendingShot() {
+  if (!pendingShot) return;
+  if (pendingShot === 'ok') toast(t('Screenshot opgeslagen in je album'), { icon: 'camera' });
+  else toast(t('Screenshot maken lukte niet'), { bad: true, icon: 'info' });
+  pendingShot = null;
+}
+window.addEventListener('focus', () => setTimeout(showPendingShot, 300));
+
+function shotTitle(it) {
+  if (it.game) return it.game;
+  if (it.appid) { const g = S.games.find((x) => x.launch && String(x.launch.appid) === String(it.appid)); if (g) return g.title; }
+  return it.source === 'steam' ? 'Steam' : 'RandomOS';
+}
+
+async function openAlbum() {
+  Sounds.open();
+  const items = await nova.album.list().catch(() => []);
+  let modal;
+  const grid = h('div', { class: 'album-grid' });
+  if (!items.length) {
+    grid.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1', margin: 0 } },
+      h('h3', {}, t('Nog geen screenshots')),
+      h('p', {}, t('Druk tijdens een game op de Home-knop en kies "Screenshot maken" in het snelmenu.'))));
+  }
+  items.forEach((it, i) => {
+    grid.append(h('button', { class: 'album-item', 'data-focus': true, 'data-group': 'album', onclick: () => openShot(items, i, () => { UI.closeModal(modal); openAlbum(); }) },
+      h('img', { src: it.url, alt: '', loading: 'lazy' }),
+      h('div', { class: 'album-cap' }, h('b', {}, shotTitle(it)), h('span', {}, it.date ? new Date(it.date).toLocaleDateString(I18N.locale, { day: 'numeric', month: 'short' }) : ''))));
+  });
+  modal = UI.openModal(h('div', { class: 'sheet album-sheet' },
+    h('h2', {}, t('Album')), h('p', { class: 'sub' }, items.length === 1 ? t('1 screenshot') : t('{n} screenshots', { n: items.length })), grid),
+  { focus: () => Focus.first('album') });
+}
+
+function openShot(items, start, onChanged) {
+  let i = start;
+  let modal;
+  const img = h('img', { class: 'shot-img', alt: '' });
+  const cap = h('div', { class: 'shot-cap' });
+  const show = () => {
+    const it = items[i];
+    img.src = it.url;
+    cap.textContent = `${shotTitle(it)} · ${new Date(it.date).toLocaleString(I18N.locale, { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })} · ${i + 1}/${items.length}`;
+  };
+  const step = (d) => { i = (i + d + items.length) % items.length; Sounds.move(); show(); };
+  const del = async () => {
+    const it = items[i];
+    UI.closeModal(modal);
+    const ok = await confirmBox(t('Screenshot verwijderen?'), t('Dit kan niet ongedaan worden gemaakt.'), t('Verwijderen'));
+    if (!ok) return;
+    const r = await nova.album.remove(it.path);
+    if (r && r.ok) { toast(t('Screenshot verwijderd')); onChanged(); }
+    else { Sounds.error(); toast(t('Verwijderen lukte niet'), { bad: true, icon: 'info' }); }
+  };
+  modal = UI.openModal(h('div', { class: 'sheet shot-sheet' }, img, cap,
+    h('div', { class: 'd-actions' },
+      h('button', { class: 'btn ghost', 'data-focus': true, 'data-group': 'shot', onclick: () => step(-1) }, '‹ ' + t('Vorige')),
+      h('button', { class: 'btn primary', 'data-focus': true, 'data-group': 'shot', 'data-autofocus': true, onclick: () => step(1) }, t('Volgende') + ' ›'),
+      h('button', { class: 'btn ghost', 'data-focus': true, 'data-group': 'shot', onclick: del }, h('span', { class: 'ico trash' }), t('Verwijderen')),
+      h('button', { class: 'btn ghost', 'data-focus': true, 'data-group': 'shot', onclick: () => { Sounds.back(); UI.closeModal(modal); } }, t('Sluiten')))),
+  { className: 'shot-modal' });
+  show();
 }
 
 // ================================================================ slaaptimer

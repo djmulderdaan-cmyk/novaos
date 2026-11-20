@@ -128,10 +128,16 @@ Het hoofdmenu van RandomOS. Bediening:
 **Instellingen** (alles met de controller):
 - **Uiterlijk:** 8 thema's, accentkleur, achtergrond (game-art / ruimte / effen), tegelgrootte, tekstgrootte, klok, datum, batterij-%
 - **Effecten & geluid:** geluidspakketten (Zacht, Retro, Ruimte, Bubbels, Kristal, Klik) of **eigen geluiden**, menuvolume, animaties beperken, prestatiemodus
-- **Controller:** knoppenstijl (Xbox / PlayStation / Nintendo), A/B wisselen, scrollsnelheid, trillen, testscherm
-- **Home & bibliotheek:** starttabblad, favorieten eerst, verborgen games
-- **Energie:** screensaver met zwevende astronaut, automatisch slapen, batterijwaarschuwing
-- Wifi, Bluetooth (controllers koppelen), volume en helderheid, systeeminfo
+- **Controller:** knoppenstijl (Xbox / PlayStation / Nintendo), A/B wisselen (geldt in **alle** games, via InputPlumber), scrollsnelheid, trillen, testscherm
+- **Home & bibliotheek:** starttabblad, favorieten eerst, verborgen games, sorteren op recent / A–Z / meest gespeeld
+- **Games:** apps toevoegen met één knop (Firefox, YouTube, …), speeltijd en top 5 van alle games, eigen tegels verwijderen
+- **Energie:** screensaver met zwevende astronaut, automatisch slapen, **slaaptimer** (ook tijdens een game), batterijwaarschuwing
+- Wifi, Bluetooth (controllers koppelen), volume en helderheid, systeeminfo, updates
+
+**Extra's:**
+- **Verras me** (Home): kiest een willekeurige game uit je bibliotheek
+- **Screenshots:** tijdens een game Home-knop → snelmenu → *Screenshot maken*. Ze staan in **Album** (Home) en in `~/Pictures/RandomOS`; Steam-screenshots staan er ook in
+- **Unity- en .exe-games** zonder controller-ondersteuning: je controller werkt als toetsenbord en muis (per game aan/uit bij *Info*)
 
 **Toetsenbord & muis** werken ook overal:
 

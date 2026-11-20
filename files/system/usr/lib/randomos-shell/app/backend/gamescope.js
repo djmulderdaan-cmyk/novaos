@@ -111,8 +111,21 @@ function focusGame(appid, pidsFn, opts = {}) {
       }
     }
     } finally { busy = false; }
-    // vensters zijn gelabeld: na 30 s stoppen (scheelt CPU tijdens het gamen); max 3 minuten zoeken
-    if ((firstTag && Date.now() - firstTag > 30000) || Date.now() - started > 180000) stopTagging();
+    // vensters zijn gelabeld: na 30 s (of max 3 min) overschakelen op zuinig controleren
+    if (!slow && ((firstTag && Date.now() - firstTag > 30000) || Date.now() - started > 180000)) {
+      slow = true;
+      if (tagTimer) clearInterval(tagTimer);
+      tagTimer = setInterval(slowCheck, 6000);
+    }
+  };
+  // Zuinig: één xprop-aanroep. Heeft de game geen zichtbaar venster meer (launcher dicht, echt
+  // game-venster nieuw, zoals Minecraft na de Modrinth-launcher)? Dan opnieuw zoeken en labelen.
+  let slow = false;
+  const slowCheck = async () => {
+    if (busy) return;
+    const out = await run('xprop', ['-root', 'GAMESCOPE_FOCUSABLE_APPS']);
+    const apps = out ? (out.split('=')[1] || '').split(',').map((x) => Number(x.trim())) : [];
+    if (out && !apps.includes(id)) await tick();
   };
   tick();
   tagTimer = setInterval(tick, 2000);

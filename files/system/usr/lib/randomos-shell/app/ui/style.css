@@ -171,6 +171,18 @@ main { position: relative; overflow: hidden; }
 .placeholder .ph-icon { position: absolute; top: 18%; left: 50%; width: 46%; max-height: 42%; object-fit: contain; transform: translateX(-50%); filter: drop-shadow(0 8px 20px rgba(0, 0, 0, .35)); }
 .qm-now { margin: 4px 0 10px; }
 .qm-now .v { font-size: 1.15rem; margin: 2px 0; }
+.modal .album-sheet { width: min(1180px, 92vw); height: 84vh; max-height: 84vh; overflow-y: auto; padding: 28px 32px; }
+.album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; margin-top: 14px; }
+.album-item { position: relative; aspect-ratio: 16 / 9; border-radius: 14px; overflow: hidden; padding: 0; border: 2px solid transparent; background: rgba(255, 255, 255, .06); cursor: pointer; }
+.album-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.album-item.focused, .album-item:focus-visible { border-color: var(--accent); transform: scale(1.03); }
+.album-cap { position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 10px 8px; display: flex; justify-content: space-between; gap: 8px; font-size: .78rem; color: #fff; background: linear-gradient(transparent, rgba(0, 0, 0, .75)); text-align: left; }
+.modal .shot-sheet { width: min(1500px, 94vw); text-align: center; padding: 20px 24px 24px; }
+.shot-img { width: 100%; max-height: 72vh; object-fit: contain; border-radius: 12px; background: #000; }
+.shot-cap { margin: 12px 0 4px; color: var(--text-2); font-size: .95rem; }
+.shot-sheet .d-actions { justify-content: center; }
+.ico.camera { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M4 7h3l2-3h6l2 3h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/><circle cx='12' cy='13' r='3.6' fill='none' stroke='black' stroke-width='2'/></svg>"); }
+.ico.image { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='3' y='4' width='18' height='16' rx='3' fill='none' stroke='black' stroke-width='2'/><circle cx='9' cy='9.5' r='1.8'/><path d='M4 18l5-5 4 4 3-3 4 4'  fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/></svg>"); }
 .app-ico { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; margin-right: 14px; flex: 0 0 auto; }
 .ico.dice { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='3' y='3' width='18' height='18' rx='4' fill='none' stroke='black' stroke-width='2'/><circle cx='8' cy='8' r='1.6'/><circle cx='16' cy='8' r='1.6'/><circle cx='12' cy='12' r='1.6'/><circle cx='8' cy='16' r='1.6'/><circle cx='16' cy='16' r='1.6'/></svg>"); }
 .ico.trash { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/></svg>"); }
