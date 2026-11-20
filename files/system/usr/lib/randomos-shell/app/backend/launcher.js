@@ -157,7 +157,7 @@ function launch(game) {
     child.on('error', () => finish('Kon de game niet starten'));
     child.unref();
     current.child = child;
-    focusCurrentGame(fakeAppId(game.id), () => gamePids(game.id));
+    focusCurrentGame(fakeAppId(game.id), () => gamePids(game.id), { classes: l.windowClass ? [l.windowClass] : [] });
   }
   startPolling();
   return { ok: true };

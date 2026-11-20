@@ -68,7 +68,7 @@ async function focusSteam() {
 // withSteam: Steam-vensters (voorwaarden, updates, cloud-saves) mogen tijdens het starten zichtbaar zijn;
 // zodra het game-venster er is, staat de game vooraan (eerste in de lijst).
 function focusGame(appid, pidsFn, opts = {}) {
-  const { withSteam = false } = opts;
+  const { withSteam = false, classes = [] } = opts;
   stopTagging();
   if (!active) { pendingGame = { appid, pidsFn, opts }; return; }
   mode = 'game';
@@ -83,6 +83,20 @@ function focusGame(appid, pidsFn, opts = {}) {
     if (busy) return;
     busy = true;
     try {
+    // flatpak-apps: procesnummers kloppen niet (eigen namespace), dus ook op vensterklasse zoeken
+    for (const cls of classes) {
+      for (const display of DISPLAYS) {
+        const out = await run('xdotool', ['search', '--class', cls], display);
+        if (!out) continue;
+        for (const w of out.split('\n').map((x) => x.trim()).filter(Boolean)) {
+          const key = `${display}/${w}`;
+          if (tagged.has(key)) continue;
+          tagged.add(key);
+          await tagWindow(w, id, display);
+          if (!firstTag) firstTag = Date.now();
+        }
+      }
+    }
     for (const pid of pidsFn()) {
       for (const display of DISPLAYS) {
         const out = await run('xdotool', ['search', '--pid', String(pid)], display);

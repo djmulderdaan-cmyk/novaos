@@ -245,7 +245,7 @@ function listCustom() {
       lastPlayed: 0,
       playtime: 0,
       art: { cover: img(g.cover), hero: img(g.hero || g.cover), logo: img(g.logo), header: [] },
-      launch: { type: 'custom', cmd: g.cmd },
+      launch: { type: 'custom', cmd: g.cmd, windowClass: g.windowClass || null },
     };
   });
 }
