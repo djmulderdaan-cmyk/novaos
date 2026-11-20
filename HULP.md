@@ -3,6 +3,14 @@
 Open deze pagina op de laptop (bureaubladmodus → browser), klik rechtsboven in een vak op het **kopieer-icoon**
 en plak het in **Konsole** met **Ctrl + Shift + V**. Druk daarna op Enter.
 
+## 0. RandomOS updaten (eenmalig met het hand, daarna gaat het vanzelf)
+
+Vraagt om je wachtwoord. De laptop downloadt de update en start daarna vanzelf opnieuw op.
+
+```bash
+sudo rpm-ostree upgrade && systemctl reboot
+```
+
 ## 1. Op afstand laten meekijken (SSH aanzetten)
 
 Zet SSH aan en geeft de hulp-pc toegang. Vraagt één keer om je wachtwoord (je typt blind, dat is normaal).
