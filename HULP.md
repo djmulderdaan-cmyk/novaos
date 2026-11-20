@@ -3,7 +3,7 @@
 Open deze pagina op de laptop (bureaubladmodus → browser), klik rechtsboven in een vak op het **kopieer-icoon**
 en plak het in **Konsole** met **Ctrl + Shift + V**. Druk daarna op Enter.
 
-## 0. RandomOS updaten (eenmalig met het hand, daarna gaat het vanzelf)
+## 0. RandomOS updaten (eenmalig met de hand, daarna gaat het vanzelf)
 
 Vraagt om je wachtwoord. De laptop downloadt de update en start daarna vanzelf opnieuw op.
 
