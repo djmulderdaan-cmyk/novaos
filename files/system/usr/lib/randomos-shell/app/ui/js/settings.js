@@ -362,6 +362,30 @@ async function renderCat() {
     out.push(group(t('Acties'),
       actionRow(t('Bibliotheek vernieuwen'), t('Zoek opnieuw naar geïnstalleerde games'), 'refresh', async () => { await loadGames(); rerenderAll(); renderCat(); toast(t('{n} games gevonden', { n: S.games.length })); }, P),
       actionRow(t('Steam Big Picture openen'), t('Winkel, downloads en Steam-instellingen'), 'steam', () => openSteamFront(), P)));
+    // apps die geïnstalleerd zijn maar nog geen tegel hebben (Firefox, Haruna, YouTube, ...)
+    const apps = await nova.games.apps().catch(() => []);
+    out.push(group(t('Apps toevoegen'), ...(apps.length ? apps.map((a) => {
+      const val = h('span', { class: 'r-val' }, '+');
+      const row = actionRow(a.name, t('Als tegel in je bibliotheek zetten'), null, async () => {
+        if (row.dataset.done) return;
+        const r = await nova.games.addApp(a.id);
+        if (r && r.ok) {
+          row.dataset.done = '1'; val.textContent = '✓';
+          toast(t('{name} staat nu in je bibliotheek', { name: r.name }));
+          await loadGames(); rerenderAll();
+        } else { Sounds.error(); toast(t('Toevoegen lukte niet'), { bad: true, icon: 'info' }); }
+      }, P, val);
+      if (a.icon) row.prepend(h('img', { class: 'app-ico', src: a.icon, alt: '' }));
+      return row;
+    }) : [h('div', { class: 'row static' }, rowText(t('Alles staat er al'), t('Alle geïnstalleerde apps staan al in je bibliotheek.')))])));
+    // speeltijd: totaal en meest gespeeld
+    const played = S.games.filter((g) => g.playtime > 0).sort((a, b) => b.playtime - a.playtime);
+    if (played.length) {
+      const total = played.reduce((n, g) => n + g.playtime, 0);
+      out.push(group(t('Speeltijd'),
+        h('div', { class: 'row static' }, rowText(t('Totaal'), t('{n} games gespeeld', { n: played.length })), h('span', { class: 'r-val' }, playtimeText(total))),
+        ...played.slice(0, 5).map((g, i) => h('div', { class: 'row static' }, rowText(`${i + 1}. ${g.title}`, g.lastPlayed ? relTime(g.lastPlayed) : null), h('span', { class: 'r-val' }, playtimeText(g.playtime))))));
+    }
     out.push(group(t('Eigen games toevoegen'), h('div', { class: 'row static', style: { display: 'block', lineHeight: 1.6, color: 'var(--text-2)' } },
       ...tx('Ga naar de bureaubladmodus en zet je games in {file}. Epic-, GOG- en Amazon-games uit Heroic verschijnen vanzelf.', { file: h('b', { style: { color: 'var(--text)' } }, '~/.config/randomos/games.json') }))));
   }

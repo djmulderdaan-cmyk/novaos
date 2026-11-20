@@ -70,7 +70,9 @@ function minecraftCover(game) {
 function placeholder(game) {
   if (game.minecraft) return minecraftCover(game);
   const hue = hashHue(game.title);
+  const icon = game.art && game.art.icon && game.art.icon[0];
   return h('div', { class: 'placeholder', style: { background: `linear-gradient(160deg, hsl(${hue} 70% 46%), hsl(${(hue + 50) % 360} 70% 22%))` } },
+    icon ? h('img', { class: 'ph-icon', src: icon, alt: '' }) : null,
     h('div', { class: 'src' }, SOURCE_NAMES[game.source] || ''), game.title);
 }
 

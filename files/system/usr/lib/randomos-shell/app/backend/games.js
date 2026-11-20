@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const settings = require('./settings');
+const { execFileSync } = require('child_process');
 
 const HOME = os.homedir();
 
@@ -297,7 +298,7 @@ function listCustom() {
       installed: true,
       lastPlayed: 0,
       playtime: 0,
-      art: { cover: img(g.cover), hero: img(g.hero || g.cover), logo: img(g.logo), header: [] },
+      art: { cover: img(g.cover), hero: img(g.hero || g.cover), logo: img(g.logo), header: [], icon: img(g.icon) },
       // Unity-games, en Windows-games via umu/Proton (vaak alleen toetsenbord/muis)
       unity: detectUnity(g.cmd) || /\bumu-run\b|\.exe\b/i.test(g.cmd),
       launch: { type: 'custom', cmd: g.cmd, windowClass: g.windowClass || null },
@@ -310,6 +311,7 @@ function listAll() {
   const all = [...listSteam(), ...listSteamShortcuts(), ...listModrinth(), ...listHeroic(), ...listCustom()];
   for (const g of all) {
     if (s.recent[g.id]) g.lastPlayed = Math.max(g.lastPlayed, s.recent[g.id]);
+    if (g.source !== 'steam' && s.playtime && s.playtime[g.id]) g.playtime = (g.playtime || 0) + Math.round(s.playtime[g.id]);
     g.favorite = s.favorites.includes(g.id);
     const pm = (s.padMap || {})[g.id];
     g.padMap = pm === undefined ? !!g.unity : !!pm;
@@ -335,4 +337,92 @@ function profile() {
   return { name: name || os.userInfo().username, avatar };
 }
 
-module.exports = { listAll, profile, steamRoot };
+// ---------------------------------------------------------------- apps (flatpak) toevoegen
+const CUSTOM_FILE = path.join(settings.DIR, 'games.json');
+const FLATPAK_EXPORTS = [path.join(HOME, '.local/share/flatpak/exports/share'), '/var/lib/flatpak/exports/share'];
+// launchers die al een eigen bron hebben, en systeemhulpjes die geen "app op de tv" zijn
+const APP_SKIP = new Set(['com.valvesoftware.Steam', 'com.modrinth.ModrinthApp', 'com.heroicgameslauncher.hgl', 'com.github.tchx84.Flatseal',
+  'io.github.flattool.Warehouse', 'org.gnome.Firmware', 'io.github.DenysMb.Kontainer', 'com.vysp3r.ProtonPlus', 'com.github.Matoking.protontricks']);
+
+function desktopInfo(id) {
+  for (const base of FLATPAK_EXPORTS) {
+    const text = readText(path.join(base, 'applications', `${id}.desktop`));
+    if (!text) continue;
+    const main = text.split(/\n\[(?!Desktop Entry)/)[0];
+    const get = (k) => { const m = main.match(new RegExp(`^${k}=(.*)$`, 'm')); return m ? m[1].trim() : ''; };
+    if (get('NoDisplay') === 'true') return null;
+    return { name: get('Name'), wmClass: get('StartupWMClass'), icon: get('Icon') || id };
+  }
+  return null;
+}
+
+function iconPath(icon) {
+  if (!icon) return null;
+  if (icon.startsWith('/')) return exists(icon) ? icon : null;
+  for (const base of FLATPAK_EXPORTS) {
+    for (const size of ['512x512', '256x256', 'scalable', '192x192', '128x128', '96x96', '64x64', '48x48']) {
+      for (const ext of ['png', 'svg']) {
+        const p = path.join(base, 'icons', 'hicolor', size, 'apps', `${icon}.${ext}`);
+        if (exists(p)) return p;
+      }
+    }
+  }
+  return null;
+}
+
+const escRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Geïnstalleerde flatpak-apps die nog niet in de bibliotheek staan. */
+function listApps() {
+  let out = '';
+  try { out = execFileSync('flatpak', ['list', '--app', '--columns=application,name'], { timeout: 8000 }).toString(); } catch { return []; }
+  const custom = readJSON(CUSTOM_FILE);
+  const taken = JSON.stringify(Array.isArray(custom) ? custom.map((g) => g && g.cmd) : []);
+  const seen = new Set();
+  const apps = [];
+  for (const line of out.split('\n')) {
+    const [id, name] = line.split('\t');
+    if (!id || seen.has(id) || APP_SKIP.has(id) || !/^[\w.-]+$/.test(id)) continue;
+    seen.add(id);
+    if (taken.includes(id)) continue;
+    const d = desktopInfo(id);
+    if (!d) continue;
+    const icon = iconPath(d.icon);
+    apps.push({ id, name: d.name || name || id, wmClass: d.wmClass || '', icon: icon ? fileUrl(icon) : null, iconPath: icon });
+  }
+  return apps.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function writeCustom(list) {
+  fs.mkdirSync(settings.DIR, { recursive: true });
+  if (exists(CUSTOM_FILE)) { try { fs.copyFileSync(CUSTOM_FILE, CUSTOM_FILE + '.bak'); } catch {} }
+  const tmp = CUSTOM_FILE + '.tmp';
+  fs.writeFileSync(tmp, JSON.stringify(list, null, 2));
+  fs.renameSync(tmp, CUSTOM_FILE);
+}
+
+/** Voeg een flatpak-app toe als tegel. Alleen ids uit listApps() (nooit een vrij commando). */
+function addApp(id) {
+  const app = listApps().find((a) => a.id === id);
+  if (!app) return { error: 'App niet gevonden' };
+  const list = readJSON(CUSTOM_FILE);
+  const games = Array.isArray(list) ? list : [];
+  // vensters herkennen aan de WM-klasse uit het .desktop-bestand, of aan het app-id
+  const classes = [app.wmClass, id, id.split('.').pop()].filter(Boolean).map(escRe);
+  games.push({ name: app.name, cmd: `flatpak run ${id}`, windowClass: `(${[...new Set(classes)].join('|')})`, icon: app.iconPath || undefined, cover: undefined });
+  writeCustom(games);
+  return { ok: true, name: app.name };
+}
+
+/** Verwijder een eigen tegel (alleen uit games.json; de app/game zelf blijft geïnstalleerd). */
+function removeCustom(gameId) {
+  const list = readJSON(CUSTOM_FILE);
+  if (!Array.isArray(list)) return { error: 'Niet gevonden' };
+  const slug = (n) => `custom:${String(n).toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+  const next = list.filter((g) => !(g && g.name && slug(g.name) === gameId));
+  if (next.length === list.length) return { error: 'Niet gevonden' };
+  writeCustom(next);
+  return { ok: true };
+}
+
+module.exports = { listAll, profile, steamRoot, listApps, addApp, removeCustom };

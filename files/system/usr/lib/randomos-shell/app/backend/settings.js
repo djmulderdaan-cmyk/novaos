@@ -21,6 +21,7 @@ const DEFAULTS = {
   name: '',
   favorites: [],
   recent: {}, // gameId -> laatst gestart (ms), voor niet-Steam games
+  playtime: {}, // gameId -> minuten gespeeld, voor niet-Steam games (Steam houdt het zelf bij)
 };
 
 function load() {

@@ -37,7 +37,8 @@ async function apply(on) {
 async function sync() {
   if (!wanted || busy) return;
   busy = true;
-  try { set(await run('sync')); } finally { busy = false; }
+  // een mislukte controle zet de wissel niet uit (dat gaf aan/uit-geflapper); alleen apply() beslist
+  try { if (await run('sync')) set(true); } finally { busy = false; }
 }
 
 module.exports = { apply, sync, isActive: () => active, onChange: (fn) => { onChange = fn; } };

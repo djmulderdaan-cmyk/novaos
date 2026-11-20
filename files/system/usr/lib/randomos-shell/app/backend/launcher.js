@@ -205,6 +205,8 @@ function gameHasWindow(cur) {
 // (ook als er nog hulpprocessen van Wine/Electron/flatpak achterblijven).
 function checkWindowGone(age) {
   if (age < 20000 || current.phase !== 'running') return false;
+  // Steam-games: Steam meldt zelf betrouwbaar of de game draait (sommige wisselen van venster)
+  if (['steam', 'steamshortcut'].includes(current.game.launch.type)) return false;
   const apps = focusableApps();
   if (apps === null) return false;
   const has = apps.includes(gameAppId(current)) || (current.game.launch.type === 'modrinth' && windowWithClass('Minecraft'));
@@ -282,9 +284,23 @@ function stopPadMapper() {
   if (padMapper) { try { padMapper.kill('SIGTERM'); } catch {} padMapper = null; }
 }
 
+// Speeltijd bijhouden voor games buiten Steam (Steam doet dat zelf)
+function addPlaytime(cur) {
+  if (!cur || !cur.sawRunning || ['steam', 'steamshortcut'].includes(cur.game.launch.type)) return;
+  const min = Math.min(24 * 60, (Date.now() - cur.startedAt) / 60000);
+  if (min < 0.5) return;
+  try {
+    const s = settings.load();
+    const pt = { ...(s.playtime || {}) };
+    pt[cur.game.id] = Math.round(((pt[cur.game.id] || 0) + min) * 10) / 10;
+    settings.save({ playtime: pt });
+  } catch {}
+}
+
 function finish(error) {
   clearInterval(pollTimer);
   stopPadMapper();
+  addPlaytime(current);
   gamescope.focusShell();
   const ended = current && current.game;
   current = null;

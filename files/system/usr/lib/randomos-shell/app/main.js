@@ -108,6 +108,9 @@ handle('games:launch', (id) => launcher.launch(games.listAll().find((g) => g.id 
 handle('games:stop', () => launcher.stop());
 handle('games:show-shell', () => launcher.showShellOverGame());
 handle('games:resume', () => launcher.resumeGame());
+handle('games:apps', () => games.listApps());
+handle('games:add-app', (id) => games.addApp(String(id || '')));
+handle('games:remove', (id) => games.removeCustom(String(id || '')));
 handle('games:state', () => launcher.state());
 handle('profile:get', () => games.profile());
 

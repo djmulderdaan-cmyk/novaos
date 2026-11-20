@@ -279,9 +279,25 @@ function renderHome() {
   const steamTile = h('button', { class: 'tile wide', 'data-focus': true, 'data-group': 'rail', onclick: () => (S.steamLoggedIn === false ? steamLogin() : openSteamFront()) },
     h('div', { class: 'more' }, h('span', { class: 'ico steam' }), h('span', {}, 'Steam'), h('span', { style: { color: 'var(--text-3)', fontSize: '.85rem' } }, t('Winkel en downloads'))));
   rail.append(steamTile);
+  // RandomOS-knop: kies een willekeurige game
+  const dice = h('button', { class: 'tile wide', 'data-focus': true, 'data-group': 'rail', onclick: () => surprise() },
+    h('div', { class: 'more' }, h('span', { class: 'ico dice' }), h('span', {}, t('Verras me')), h('span', { style: { color: 'var(--text-3)', fontSize: '.85rem' } }, t('Een willekeurige game'))));
+  rail.append(dice);
   if (!S.hero || !list.find((g) => g.id === S.hero.id)) setHero(list[0]);
 }
 const game = (el) => el._game;
+
+// "Verras me": een willekeurige game uit je bibliotheek (niet twee keer achter elkaar dezelfde)
+let lastSurprise = null;
+function surprise() {
+  const pool = S.games.filter((g) => !isHidden(g) && g.id !== lastSurprise);
+  if (!pool.length) { Sounds.error(); return; }
+  const g = pool[Math.floor(Math.random() * pool.length)];
+  lastSurprise = g.id;
+  Input.rumble(0.3, 0.5, 120);
+  setHero(g);
+  openDetail(g);
+}
 
 let heroTimer = null;
 function setHeroDebounced(g) { clearTimeout(heroTimer); heroTimer = setTimeout(() => setHero(g), 110); }
@@ -424,14 +440,24 @@ function openDetail(g) {
           favBtn,
           h('button', { class: 'btn ghost', 'data-focus': true, onclick: async () => { UI.closeModal(modal); await toggleHidden(g); } }, isHidden(g) ? t('Weer tonen') : t('Verbergen')),
           g.source === 'custom' && g.launch && g.launch.type === 'custom' ? h('button', { class: 'btn ghost', 'data-focus': true, id: 'padMapBtn', onclick: async (ev) => {
+            const btn = ev.currentTarget; // na een await is currentTarget weg
             const on = !g.padMap;
             await saveSettings({ padMap: { ...(S.settings.padMap || {}), [g.id]: on } });
             g.padMap = on;
             S.games.forEach((x) => { if (x.id === g.id) x.padMap = on; });
-            ev.currentTarget.lastChild.textContent = on ? t('Controller als toetsenbord: aan') : t('Controller als toetsenbord: uit');
+            btn.lastChild.textContent = on ? t('Controller als toetsenbord: aan') : t('Controller als toetsenbord: uit');
             Sounds.toggle(on);
             toast(on ? t('Je controller werkt in deze game als toetsenbord en muis') : t('Controller-vertaling uit voor deze game'), { icon: 'gamepad' });
           } }, h('span', { class: 'ico gamepad' }), h('span', {}, g.padMap ? t('Controller als toetsenbord: aan') : t('Controller als toetsenbord: uit'))) : null,
+          g.source === 'custom' ? h('button', { class: 'btn ghost', 'data-focus': true, onclick: async () => {
+            UI.closeModal(modal);
+            const ok = await confirmBox(t('Tegel verwijderen?'), t('{title} verdwijnt uit je bibliotheek. De game of app zelf blijft gewoon geïnstalleerd.', { title: g.title }), t('Verwijderen'));
+            if (!ok) return;
+            const r = await nova.games.remove(g.id);
+            if (!r || r.error) { Sounds.error(); toast(t('Verwijderen lukte niet'), { bad: true, icon: 'info' }); return; }
+            await loadGames(); rerenderAll();
+            toast(t('{title} verwijderd', { title: g.title }));
+          } }, h('span', { class: 'ico trash' }), t('Verwijderen')) : null,
           h('button', { class: 'btn ghost', 'data-focus': true, onclick: () => { Sounds.back(); UI.closeModal(modal); } }, t('Sluiten'))))));
   favBtn.addEventListener('click', async () => { await toggleFavorite(g); const now = S.games.find((x) => x.id === g.id); $('.ico', favBtn).classList.toggle('on', now.favorite); favBtn.lastChild.textContent = now.favorite ? t('Favoriet') : t('Favoriet maken'); });
   modal = UI.openModal(sheet);
