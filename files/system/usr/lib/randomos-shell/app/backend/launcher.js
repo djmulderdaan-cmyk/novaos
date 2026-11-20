@@ -51,6 +51,7 @@ function steamInGamescopeMode() {
 }
 
 function startSteam() {
+  steamStartedAt = Date.now();
   const child = spawn('steam', ['-silent'], { detached: true, stdio: 'ignore', env: STEAM_ENV });
   child.unref();
 }
@@ -278,7 +279,37 @@ function steamLogin() {
 
 // Elke 15 s: Steam moet draaien (wordt gestopt als je het inlogvenster sluit) en de focus moet kloppen
 let steamDownSince = 0;
+let steamUiDownSince = 0;
+let steamStartedAt = Date.now();
+
+function steamUiRunning() {
+  try { execFileSync('pgrep', ['-x', 'steamwebhelper'], { stdio: 'ignore' }); return true; } catch { return false; }
+}
+
+// Steam draait, maar zijn interface (steamwebhelper) is gecrasht -> niks opent meer. Steam netjes herstarten.
+function restartSteam(reason) {
+  if (restartingSteam) return;
+  console.log(`[steam] herstarten: ${reason}`);
+  restartingSteam = true;
+  spawn('steam', ['-shutdown'], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
+  let tries = 0;
+  const wait = setInterval(() => {
+    if (!steamRunning() || ++tries > 30) {
+      clearInterval(wait);
+      for (const pid of steamPids()) { try { process.kill(pid, 'SIGKILL'); } catch {} }
+      setTimeout(() => { restartingSteam = false; steamStartedAt = Date.now(); startSteam(); if (gamescope.mode === 'steam') gamescope.focusShell(); }, 1500);
+    }
+  }, 500);
+}
+
 function watchdog() {
+  // Steam-interface gecrasht? (alleen als er geen game draait en Steam al even aan staat)
+  if (!current && steamRunning() && Date.now() - steamStartedAt > 90000) {
+    if (!steamUiRunning()) {
+      if (!steamUiDownSince) steamUiDownSince = Date.now();
+      if (Date.now() - steamUiDownSince > 30000) { steamUiDownSince = 0; restartSteam('interface (steamwebhelper) gecrasht'); }
+    } else steamUiDownSince = 0;
+  }
   if (!steamRunning()) {
     if (!steamDownSince) steamDownSince = Date.now();
     // even wachten: Steam herstart zichzelf soms bij updates

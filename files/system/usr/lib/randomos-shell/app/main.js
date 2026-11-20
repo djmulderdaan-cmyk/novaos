@@ -10,7 +10,13 @@ const updates = require('./backend/updates');
 const overlay = require('./backend/overlay');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
-app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling');
+app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,SpareRendererForSitePerProcess');
+// Zuinig met geheugen op laptops met 8 GB of minder (games hebben het harder nodig)
+if (require('os').totalmem() <= 9 * 1024 ** 3) {
+  app.commandLine.appendSwitch('js-flags', '--max-old-space-size=256');
+  app.commandLine.appendSwitch('disk-cache-size', String(64 * 1024 * 1024));
+  app.commandLine.appendSwitch('renderer-process-limit', '1');
+}
 
 let win = null;
 let rendererCrashes = [];
