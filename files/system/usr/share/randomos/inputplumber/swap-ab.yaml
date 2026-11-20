@@ -1,0 +1,20 @@
+# RandomOS: A en B wisselen (Nintendo-indeling) voor de hele computer.
+# Wordt door /usr/libexec/randomos/padswap geladen op elke controller die InputPlumber beheert.
+version: 1
+kind: DeviceProfile
+name: RandomOS A/B wissel
+mapping:
+  - name: Onder wordt rechts
+    source_event:
+      gamepad:
+        button: South
+    target_events:
+      - gamepad:
+          button: East
+  - name: Rechts wordt onder
+    source_event:
+      gamepad:
+        button: East
+    target_events:
+      - gamepad:
+          button: South

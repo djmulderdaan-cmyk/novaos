@@ -522,6 +522,11 @@ function onGameState(st) {
   loadGames().then(rerenderAll);
 }
 nova.onGameState(onGameState);
+// A/B-wissel voor alle games: als de controller zelf al wisselt, doet de shell het niet nog eens
+if (nova.onSysSwap) {
+  nova.onSysSwap((on) => { Input.sysSwap = !!on; });
+  nova.sysSwap().then((on) => { Input.sysSwap = !!on; }).catch(() => {});
+}
 
 // ================================================================ snelmenu
 // Prestatie-overlay (FPS-meter) kiezen: Uit / FPS / Uitgebreid

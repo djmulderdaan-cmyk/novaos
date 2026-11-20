@@ -39,6 +39,8 @@ contextBridge.exposeInMainWorld('nova', {
     focusShell: call('sys:focus-shell'),
   },
   onGameState: (cb) => ipcRenderer.on('game:state', (_e, s) => cb(s)),
+  sysSwap: call('pad:sysswap'),
+  onSysSwap: (cb) => ipcRenderer.on('pad:sysswap', (_e, on) => cb(on)),
   updates: {
     status: call('upd:status'),
     check: call('upd:check'),

@@ -69,7 +69,8 @@ const Input = (() => {
       p.buttons.forEach((b, i) => {
         if (!b.pressed) return;
         let idx = i;
-        if (api.swapAB && (i === 0 || i === 1)) idx = 1 - i;
+        // sysSwap: de controller wisselt zelf al (InputPlumber), dan niet nog eens
+        if (api.swapAB && !api.sysSwap && (i === 0 || i === 1)) idx = 1 - i;
         if (BTN[idx]) active.add(BTN[idx]);
       });
       const [x = 0, y = 0] = p.axes;
@@ -108,6 +109,7 @@ const Input = (() => {
     lastStyle: 'xbox',
     lowPower: false,
     swapAB: false,
+    sysSwap: false,
     speed: 'normal',
     rumbleOn: true,
   };

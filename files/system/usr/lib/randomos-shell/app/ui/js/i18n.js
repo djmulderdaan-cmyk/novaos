@@ -308,7 +308,7 @@ const I18N = (() => {
     'Welke knoppen op het scherm getoond worden': { en: 'Which buttons are shown on screen' },
     'Automatisch': { en: 'Automatic' },
     'Bevestigen en terug wisselen': { en: 'Swap confirm and back' },
-    'Rechterknop kiest, onderste knop gaat terug (zoals bij Nintendo en Japanse consoles)': { en: 'Right button selects, bottom button goes back (like Nintendo and Japanese consoles)' },
+    'Rechterknop kiest, onderste knop gaat terug (zoals bij Nintendo). Geldt ook in alle games.': { en: 'Right button selects, bottom button goes back (like Nintendo). Also applies in all games.' },
     'Gevoel': { en: 'Feel' },
     'Scrollsnelheid': { en: 'Scroll speed' },
     'Als je de stick of het pijltje ingedrukt houdt': { en: 'When you hold the stick or an arrow' },

@@ -104,6 +104,8 @@ if (!window.nova) {
       openSteam: async () => { toast(t('Demo: Steam Big Picture zou nu openen'), { icon: 'steam' }); return { ok: true }; },
     },
     onGameState: (cb) => { gameCb = cb; },
+    sysSwap: async () => false,
+    onSysSwap: () => {},
     onSteamState: () => {},
     updates: (() => {
       let progressCb = () => {}; let staged = null;

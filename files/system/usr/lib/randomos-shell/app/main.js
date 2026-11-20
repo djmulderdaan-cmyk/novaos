@@ -8,6 +8,7 @@ const settings = require('./backend/settings');
 const gamescope = require('./backend/gamescope');
 const updates = require('./backend/updates');
 const overlay = require('./backend/overlay');
+const padswap = require('./backend/padswap');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,SpareRendererForSitePerProcess');
@@ -111,7 +112,12 @@ handle('games:state', () => launcher.state());
 handle('profile:get', () => games.profile());
 
 handle('settings:get', () => settings.load());
-handle('settings:set', (patch) => settings.save(patch));
+handle('settings:set', (patch) => {
+  const r = settings.save(patch);
+  if (patch && 'swapAB' in patch) padswap.apply(!!patch.swapAB);
+  return r;
+});
+handle('pad:sysswap', () => padswap.isActive());
 handle('sounds:custom', () => settings.customSounds());
 
 handle('sys:status', () => system.status());
@@ -144,6 +150,9 @@ app.on('child-process-gone', (_e, d) => console.log('[main] hulpproces weg:', d 
 app.whenReady().then(() => {
   launcher.ensureSteam();
   try { overlay.setLevel(settings.load().perfOverlay || 'off'); } catch {}
+  padswap.onChange((on) => send('pad:sysswap', on));
+  try { padswap.apply(!!settings.load().swapAB); } catch {}
+  setInterval(() => { padswap.sync(); }, 5000);
   createWindow();
   // Bewakers: Steam moet draaien, en gamescope moet het juiste venster vooraan houden
   setInterval(() => {

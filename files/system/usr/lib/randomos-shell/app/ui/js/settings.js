@@ -254,7 +254,7 @@ async function renderCat() {
     head(t('Bediening'), t('Controller, toetsenbord en muis werken allemaal. Xbox, PlayStation, Nintendo en de meeste andere controllers werken direct.'));
     out.push(group(t('Knoppen'),
       choiceRow(t('Knoppenstijl'), t('Welke knoppen op het scherm getoond worden'), [['auto', t('Automatisch')], ['xbox', 'Xbox'], ['ps', 'PlayStation'], ['nintendo', 'Nintendo']], s.pad || 'auto', set('pad'), P),
-      toggleRow(t('Bevestigen en terug wisselen'), t('Rechterknop kiest, onderste knop gaat terug (zoals bij Nintendo en Japanse consoles)'), s.swapAB, set('swapAB', () => updateHints()), P)));
+      toggleRow(t('Bevestigen en terug wisselen'), t('Rechterknop kiest, onderste knop gaat terug (zoals bij Nintendo). Geldt ook in alle games.'), s.swapAB, set('swapAB', () => updateHints()), P)));
     out.push(group(t('Gevoel'),
       choiceRow(t('Scrollsnelheid'), t('Als je de stick of het pijltje ingedrukt houdt'), [['slow', t('Rustig')], ['normal', t('Normaal')], ['fast', t('Snel')]], s.navSpeed || 'normal', set('navSpeed'), P),
       toggleRow(t('Trillen'), t('Korte tik bij kiezen (als je controller dat kan)'), s.rumble !== false, set('rumble', (v) => v && Input.rumble(0.4, 0.6, 120)), P)));

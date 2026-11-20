@@ -1,0 +1,44 @@
+#!/usr/bin/bash
+# RandomOS: A/B-wissel voor ALLE games (niet alleen de RandomOS-menu's).
+# Laat InputPlumber de controllers overnemen en laadt een profiel dat A en B omdraait.
+#   padswap on    aanzetten (en profiel op alle controllers laden)
+#   padswap sync  profiel laden op controllers die er later bij zijn gekomen
+#   padswap off   uitzetten, controllers worden weer normaal
+# Schrijft "on" of "off" naar stdout.
+PROFILE=/usr/share/randomos/inputplumber/swap-ab.yaml
+NAME="RandomOS A/B wissel"
+IP=/usr/bin/inputplumber
+
+[ -x "$IP" ] && [ -f "$PROFILE" ] || { echo off; exit 1; }
+systemctl is-active -q inputplumber || { echo off; exit 1; }
+
+ids() { "$IP" devices list 2>/dev/null | grep -oE '^│ *[0-9]+ ' | tr -dc '0-9\n'; }
+
+load_all() {
+  local n=0 id
+  for id in $(ids); do
+    n=$((n + 1))
+    [ "$("$IP" device "$id" profile name 2>/dev/null)" = "$NAME" ] && continue
+    "$IP" device "$id" profile load "$PROFILE" >/dev/null 2>&1
+  done
+  echo "$n"
+}
+
+case "$1" in
+  on)
+    "$IP" devices manage-all --enable >/dev/null 2>&1 || { echo off; exit 1; }
+    # InputPlumber heeft even nodig om de controllers over te nemen
+    for _ in 1 2 3 4 5 6 7 8 9 10; do
+      [ -n "$(ids)" ] && break
+      sleep 0.3
+    done
+    load_all >/dev/null
+    echo on ;;
+  sync)
+    load_all >/dev/null
+    echo on ;;
+  off)
+    "$IP" devices manage-all >/dev/null 2>&1
+    echo off ;;
+  *) echo "gebruik: padswap on|sync|off" >&2; exit 2 ;;
+esac
