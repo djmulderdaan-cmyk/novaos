@@ -440,7 +440,9 @@ function openDetail(g) {
 // ================================================================ starten
 let launchModal = null;
 async function launch(g) {
-  if (S.game) { Sounds.error(); toast(t('{title} draait nog', { title: S.game.title }), { icon: 'info', bad: true }); return; }
+  // dezelfde game die al draait: gewoon terug naar die game
+  if (S.game && S.game.id === g.id && S.game.phase === 'running') { resumeGame(); return; }
+  // een andere game "draait nog": de backend kijkt of die echt nog open is en ruimt hem anders op
   Sounds.launch();
   Input.rumble(0.5, 0.7, 220);
   showLaunch(g, 'launching');

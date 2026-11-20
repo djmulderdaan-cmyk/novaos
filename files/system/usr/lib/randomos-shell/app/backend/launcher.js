@@ -125,7 +125,13 @@ function launch(game) {
   clearInterval(loginTimer);
   clearInterval(steamFrontTimer);
   if (!game) return { error: 'Game niet gevonden' };
-  if (current) return { error: `${current.game.title} draait al` };
+  if (current) {
+    // dezelfde game nog eens kiezen = terug naar die game
+    if (current.game.id === game.id && gameHasWindow(current)) { resumeGame(); return { ok: true, resumed: true }; }
+    // de vorige game is eigenlijk al dicht (geen venster meer): opruimen en gewoon doorgaan
+    if (!gameHasWindow(current)) { console.log('[launcher] vorige game had geen venster meer, opgeruimd:', current.game.id); stop(); }
+    else return { error: `${current.game.title} draait al` };
+  }
   rememberPlayed(game.id);
   const l = game.launch;
   current = { game, phase: 'launching', startedAt: Date.now(), sawRunning: false, child: null };
@@ -171,11 +177,56 @@ function launch(game) {
   return { ok: true };
 }
 
+// Welk gamescope-appid hoort bij de vensters van deze game?
+function gameAppId(cur) {
+  const l = cur.game.launch;
+  return l.type === 'steam' || l.type === 'steamshortcut' ? Number(l.appid) : fakeAppId(cur.game.id);
+}
+
+function focusableApps() {
+  try {
+    const out = execFileSync('xprop', ['-root', 'GAMESCOPE_FOCUSABLE_APPS'], { env: process.env, timeout: 2000 }).toString();
+    return (out.split('=')[1] || '').split(',').map((x) => Number(x.trim())).filter((x) => x > 0);
+  } catch { return null; } // onbekend (geen gamescope)
+}
+
+// Heeft de game (nog) een venster dat gamescope kan tonen?
+function gameHasWindow(cur) {
+  if (!cur) return false;
+  const apps = focusableApps();
+  if (apps === null) return true; // zonder gamescope weten we het niet: voorzichtig zijn
+  if (apps.includes(gameAppId(cur))) return true;
+  if (cur.game.launch.type === 'modrinth' && windowWithClass('Minecraft')) return true;
+  // net gestart: het venster kan er nog niet zijn
+  return Date.now() - cur.startedAt < 20000 || cur.phase === 'launching';
+}
+
+// Vensterbewaking: een game die een venster had en dat >10 s kwijt is, is dicht
+// (ook als er nog hulpprocessen van Wine/Electron/flatpak achterblijven).
+function checkWindowGone(age) {
+  if (age < 20000 || current.phase !== 'running') return false;
+  const apps = focusableApps();
+  if (apps === null) return false;
+  const has = apps.includes(gameAppId(current)) || (current.game.launch.type === 'modrinth' && windowWithClass('Minecraft'));
+  if (has) { current.sawWindow = true; current.noWindowSince = 0; return false; }
+  if (!current.sawWindow) return false;
+  if (!current.noWindowSince) current.noWindowSince = Date.now();
+  return Date.now() - current.noWindowSince > 10000;
+}
+
 function startPolling() {
   clearInterval(pollTimer);
   pollTimer = setInterval(() => {
     if (!current) return clearInterval(pollTimer);
     const age = Date.now() - current.startedAt;
+    if (checkWindowGone(age)) {
+      console.log('[launcher] game-venster weg, game is klaar:', current.game.id);
+      // achtergebleven hulpprocessen van deze game opruimen (niet bij Steam: dat doet Steam zelf)
+      if (!['steam', 'steamshortcut'].includes(current.game.launch.type)) {
+        for (const pid of processesWithEnv('RANDOMOS_GAME', current.game.id)) { try { process.kill(pid, 'SIGTERM'); } catch {} }
+      }
+      return finish();
+    }
     if (current.game.launch.type === 'steamshortcut') {
       const l = current.game.launch;
       const alive = processesWithEnv('SteamGameId', l.gameid).length > 0 || runningSteamAppId() === l.appid;
@@ -206,6 +257,9 @@ function startPolling() {
       update({ phase: 'running', sawRunning: true, sawPids: true });
     } else if (current.sawPids && !gamePids(current.game.id).length) {
       // alle game-processen zijn weg -> klaar
+      finish();
+    } else if (current.sawRunning && !current.sawPids && age > 15000 && !gamePids(current.game.id).length && !gameHasWindow(current)) {
+      // we zagen het venster maar nooit de processen, en nu is alles weg
       finish();
     } else if (!current.sawRunning && age > 120000) {
       finish('De game is niet gestart');
