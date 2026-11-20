@@ -193,6 +193,49 @@ function listSteamShortcuts() {
   return out;
 }
 
+// ---------------------------------------------------------------- Modrinth (Minecraft-instances)
+// De Modrinth App bewaart instances in een SQLite-database (app.db). Elke instance wordt een eigen tegel.
+const MODRINTH_DIRS = [
+  { dir: path.join(HOME, '.var/app/com.modrinth.ModrinthApp/data/ModrinthApp'), flatpak: true },
+  { dir: path.join(HOME, '.local/share/ModrinthApp'), flatpak: false },
+];
+
+function listModrinth() {
+  const out = [];
+  let sqlite;
+  try { sqlite = require('node:sqlite'); } catch { return out; }
+  for (const { dir, flatpak } of MODRINTH_DIRS) {
+    const file = path.join(dir, 'app.db');
+    if (!exists(file)) continue;
+    let db;
+    try { db = new sqlite.DatabaseSync(file, { readOnly: true }); } catch { continue; }
+    let rows = [];
+    try { rows = db.prepare('SELECT id, path, name, icon_path, last_played FROM instances').all(); }
+    catch {
+      // oudere Modrinth-versies: tabel "profiles", id = map-naam
+      try { rows = db.prepare('SELECT path AS id, path, name, icon_path, last_played FROM profiles').all(); } catch {}
+    }
+    try { db.close(); } catch {}
+    for (const r of rows) {
+      if (!r || !r.name || !r.id) continue;
+      const icon = r.icon_path && exists(String(r.icon_path)) ? [fileUrl(String(r.icon_path))] : [];
+      const lp = Number(r.last_played || 0);
+      out.push({
+        id: `modrinth:${r.id}`,
+        title: String(r.name),
+        source: 'modrinth',
+        installed: true,
+        minecraft: true,
+        lastPlayed: lp > 1e12 ? lp : lp * 1000,
+        playtime: 0,
+        art: { cover: [], hero: ['img/mc-hero.jpg'], logo: [], header: [], icon },
+        launch: { type: 'modrinth', instanceId: String(r.id), flatpak },
+      });
+    }
+  }
+  return out;
+}
+
 function listHeroic() {
   const games = [];
   for (const { dir, flatpak } of HEROIC_ROOTS) {
@@ -252,7 +295,7 @@ function listCustom() {
 
 function listAll() {
   const s = settings.load();
-  const all = [...listSteam(), ...listSteamShortcuts(), ...listHeroic(), ...listCustom()];
+  const all = [...listSteam(), ...listSteamShortcuts(), ...listModrinth(), ...listHeroic(), ...listCustom()];
   for (const g of all) {
     if (s.recent[g.id]) g.lastPlayed = Math.max(g.lastPlayed, s.recent[g.id]);
     g.favorite = s.favorites.includes(g.id);

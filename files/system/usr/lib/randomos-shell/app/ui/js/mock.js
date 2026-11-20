@@ -24,6 +24,8 @@ if (!window.nova) {
     { id: 'gog:witcher3', title: 'The Witcher 3', source: 'gog', lastPlayed: now - 80 * day, playtime: 9000, art: steamArt(292030) },
     { id: 'custom:mijn-game', title: 'Mijn Eigen Game', source: 'custom', lastPlayed: 0, playtime: 0, art: { cover: [], hero: [], logo: [] } },
     { id: 'custom:retroarch', title: 'RetroArch', source: 'custom', lastPlayed: now - 30 * day, playtime: 0, art: steamArt(1118310) },
+    { id: 'modrinth:abc', title: 'Survival met vrienden', source: 'modrinth', minecraft: true, lastPlayed: now - 0.5 * day, playtime: 0, art: { cover: [], hero: ['img/mc-hero.jpg'], logo: [], icon: [] } },
+    { id: 'modrinth:def', title: 'Create Mod 1.21', source: 'modrinth', minecraft: true, lastPlayed: now - 6 * day, playtime: 0, art: { cover: [], hero: ['img/mc-hero.jpg'], logo: [], icon: [] } },
   ].map((g) => ({ installed: true, launch: { type: 'custom', cmd: 'true' }, ...g }));
   const games = [...steam, ...extra];
 

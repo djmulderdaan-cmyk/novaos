@@ -151,6 +151,10 @@ Het hoofdmenu van RandomOS. Bediening:
 Met de muis: aanwijzen en klikken, scrollen door je games, schuifjes slepen, en klikken op de knoppen onderin, de klok of het wifi-icoon.
 De knoppen onderin het scherm passen zich vanzelf aan: controllerknoppen als je een controller gebruikt, toetsen als je het toetsenbord gebruikt.
 
+**Minecraft via Modrinth:** installeer de *Modrinth App* (app-winkel). Elke instance die je daarin maakt, verschijnt
+in RandomOS als eigen tegel (grasblok + naam, of het eigen icoon van de instance) en start met één druk direct die instance.
+Tip: installeer in Modrinth de mod **Controlify** voor controller-besturing en **Sodium** voor meer FPS.
+
 **Taal:** Nederlands of English (of automatisch, op basis van je systeemtaal), in te stellen bij *Instellingen*.
 
 **Eigen geluiden:** zet in de bureaubladmodus bestanden in `~/.config/randomos/sounds/` met deze namen:

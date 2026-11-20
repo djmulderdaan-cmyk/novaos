@@ -351,7 +351,7 @@ function libraryGames() {
 function renderLibrary() {
   const chips = $('#chips');
   chips.innerHTML = '';
-  const sources = ['steam', 'epic', 'gog', 'amazon', 'custom'].filter((s) => S.games.some((g) => g.source === s));
+  const sources = ['steam', 'epic', 'gog', 'amazon', 'modrinth', 'custom'].filter((s) => S.games.some((g) => g.source === s));
   const defs = [['all', t('Alle')], ['fav', t('Favorieten')], ...sources.map((s) => [s, SOURCE_NAMES[s]])];
   for (const [id, label] of defs) {
     const c = h('button', { class: `chip${S.filter === id ? ' on' : ''}`, 'data-focus': true, 'data-group': 'chips', 'data-id': `chip-${id}` }, label);

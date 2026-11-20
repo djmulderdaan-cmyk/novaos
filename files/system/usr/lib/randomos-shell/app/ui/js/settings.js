@@ -357,7 +357,7 @@ async function renderCat() {
 
   if (id === 'games') {
     head(t('Games'), t('{n} games gevonden.', { n: S.games.length }));
-    const counts = ['steam', 'epic', 'gog', 'amazon', 'custom'].map((src) => [src, S.games.filter((g) => g.source === src).length]).filter(([, n]) => n);
+    const counts = ['steam', 'epic', 'gog', 'amazon', 'modrinth', 'custom'].map((src) => [src, S.games.filter((g) => g.source === src).length]).filter(([, n]) => n);
     out.push(group(t('Bronnen'), ...counts.map(([src, n]) => h('div', { class: 'row static' }, h('span', { class: `badge ${src}` }, SOURCE_NAMES[src]), h('div', { class: 'r-main' }), h('span', { class: 'r-val' }, n === 1 ? t('1 game') : t('{n} games', { n }))))));
     out.push(group(t('Acties'),
       actionRow(t('Bibliotheek vernieuwen'), t('Zoek opnieuw naar geïnstalleerde games'), 'refresh', async () => { await loadGames(); rerenderAll(); renderCat(); toast(t('{n} games gevonden', { n: S.games.length })); }, P),

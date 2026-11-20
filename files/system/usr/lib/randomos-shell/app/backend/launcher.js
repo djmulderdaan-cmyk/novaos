@@ -144,7 +144,13 @@ function launch(game) {
   } else {
     const env = { ...process.env, SteamGameId: fakeAppId(game.id), SteamAppId: fakeAppId(game.id), RANDOMOS_GAME: game.id };
     let child;
-    if (l.type === 'heroic') {
+    if (l.type === 'modrinth') {
+      // Modrinth App start de instance direct via zijn eigen link
+      const url = `modrinth://launch/instance/${encodeURIComponent(l.instanceId)}`;
+      child = l.flatpak
+        ? spawn('flatpak', ['run', 'com.modrinth.ModrinthApp', url], { env, detached: true, stdio: 'ignore' })
+        : spawn('ModrinthApp', [url], { env, detached: true, stdio: 'ignore' });
+    } else if (l.type === 'heroic') {
       try { l.flatpak ? execFileSync('flatpak', ['kill', 'com.heroicgameslauncher.hgl'], { stdio: 'ignore', timeout: 5000 }) : execFileSync('pkill', ['-x', 'heroic'], { stdio: 'ignore' }); } catch {}
       const url = `heroic://launch/${l.runner}/${encodeURIComponent(l.app)}`;
       child = l.flatpak
@@ -157,7 +163,8 @@ function launch(game) {
     child.on('error', () => finish('Kon de game niet starten'));
     child.unref();
     current.child = child;
-    focusCurrentGame(fakeAppId(game.id), () => gamePids(game.id), { classes: l.windowClass ? [l.windowClass] : [] });
+    const classes = l.type === 'modrinth' ? ['Minecraft', '[Mm]odrinth'] : l.windowClass ? [l.windowClass] : [];
+    focusCurrentGame(fakeAppId(game.id), () => gamePids(game.id), { classes });
   }
   startPolling();
   return { ok: true };
@@ -188,6 +195,11 @@ function startPolling() {
       } else if (age > 120000) {
         finish('De game is niet gestart (Steam reageerde niet)');
       }
+    } else if (current.game.launch.type === 'modrinth') {
+      const alive = gamePids(current.game.id).length > 0 || windowWithClass('Minecraft');
+      if (alive) { if (!current.sawRunning || current.phase !== 'running') update({ phase: 'running', sawRunning: true, sawPids: true }); }
+      else if (current.sawRunning) finish();
+      else if (age > 180000) finish('De game is niet gestart');
     } else if (!current.sawPids && gamePids(current.game.id).length) {
       // we zien de game-processen zelf: vanaf nu volgen we die
       update({ phase: 'running', sawRunning: true, sawPids: true });
@@ -209,7 +221,7 @@ function finish(error) {
 }
 
 // Processen van launchers/wrappers zelf tellen niet als de game
-const WRAPPERS = /^(heroic.*|electron|zypak.*|bwrap|flatpak.*|xdg-dbus-proxy|bash|sh|steam|steamwebhelper|reaper|pressure-vessel.*|srt-bwrap)$/i;
+const WRAPPERS = /^(ModrinthApp|modrinth.*|theseus.*|WebKit.*|heroic.*|electron|zypak.*|bwrap|flatpak.*|xdg-dbus-proxy|bash|sh|steam|steamwebhelper|reaper|pressure-vessel.*|srt-bwrap)$/i;
 function isWrapper(pid) {
   try { return WRAPPERS.test(fs.readFileSync(`/proc/${pid}/comm`, 'utf8').trim()); } catch { return true; }
 }
@@ -233,9 +245,11 @@ function processesWithEnv(key, value) {
 function stop() {
   if (!current) return { ok: true };
   const l = current.game.launch;
+  // Bij stoppen ALLES van deze game afsluiten, ook opstartprogramma's (umu, Proton, flatpak),
+  // anders start een half-opgestarte game daarna alsnog op.
   const pids = l.type === 'steam' ? processesWithEnv('SteamAppId', l.appid)
     : l.type === 'steamshortcut' ? processesWithEnv('SteamGameId', l.gameid)
-    : gamePids(current.game.id);
+    : processesWithEnv('RANDOMOS_GAME', current.game.id);
   for (const pid of pids) { try { process.kill(pid, 'SIGTERM'); } catch {} }
   setTimeout(() => { for (const pid of pids) { try { process.kill(pid, 'SIGKILL'); } catch {} } }, 5000);
   if (current.child && current.child.pid) { try { process.kill(-current.child.pid, 'SIGTERM'); } catch {} }
@@ -269,6 +283,15 @@ function openSteamBigPicture() {
 let steamEmit = () => {};
 let loginTimer = null;
 function setSteamEmitter(fn) { steamEmit = fn; }
+
+function windowWithClass(cls) {
+  for (const display of [process.env.DISPLAY || ':0', ':1']) {
+    try {
+      if (execFileSync('xdotool', ['search', '--class', cls], { env: { ...process.env, DISPLAY: display }, timeout: 2000 }).toString().trim()) return true;
+    } catch {}
+  }
+  return false;
+}
 
 function windowTitles() {
   try { return execFileSync('xwininfo', ['-root', '-children'], { env: process.env, timeout: 3000 }).toString(); } catch { return ''; }

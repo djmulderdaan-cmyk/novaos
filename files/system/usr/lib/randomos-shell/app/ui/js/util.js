@@ -41,7 +41,7 @@ function playtimeText(min) {
   return t('{n} uur gespeeld', { n });
 }
 
-const SOURCE_NAMES = { steam: 'Steam', epic: 'Epic', gog: 'GOG', amazon: 'Amazon', get custom() { return t('Eigen'); } };
+const SOURCE_NAMES = { steam: 'Steam', epic: 'Epic', gog: 'GOG', amazon: 'Amazon', modrinth: 'Modrinth', get custom() { return t('Eigen'); } };
 
 // Laadt het eerste plaatje dat werkt uit een lijst URLs
 function loadArt(img, urls, onFail) {
@@ -57,7 +57,18 @@ function loadArt(img, urls, onFail) {
   return img;
 }
 
+// Minecraft-instance (Modrinth): grasblok + naam van de instance (+ eigen icoon als dat er is)
+function minecraftCover(game) {
+  const icon = game.art && game.art.icon && game.art.icon[0];
+  return h('div', { class: 'mc-cover' },
+    h('div', { class: 'mc-sky' }),
+    h('img', { class: 'mc-block', src: 'img/grass-block.png', alt: '' }),
+    icon ? h('img', { class: 'mc-icon', src: icon, alt: '' }) : null,
+    h('div', { class: 'mc-text' }, h('div', { class: 'mc-sub' }, 'Minecraft'), h('div', { class: 'mc-name' }, game.title)));
+}
+
 function placeholder(game) {
+  if (game.minecraft) return minecraftCover(game);
   const hue = hashHue(game.title);
   return h('div', { class: 'placeholder', style: { background: `linear-gradient(160deg, hsl(${hue} 70% 46%), hsl(${(hue + 50) % 360} 70% 22%))` } },
     h('div', { class: 'src' }, SOURCE_NAMES[game.source] || ''), game.title);
