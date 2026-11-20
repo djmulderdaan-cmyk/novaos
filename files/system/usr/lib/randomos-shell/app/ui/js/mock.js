@@ -1,3 +1,4 @@
+let mockProfiles = [{ id: "main", name: "Speler", color: "#2aa8e8", main: true }]; let mockCurrent = "main";
 let dlDone = 1.2e9; const dlTotal = 4.6e9; // demo-download
 // Demo-modus: als de shell in een gewone browser draait (zonder Electron)
 // gebruiken we nepdata, zodat je de interface op Windows kunt bekijken.
@@ -78,6 +79,12 @@ if (!window.nova) {
     customSounds: async () => ({ dir: '~/.config/randomos/sounds', sounds: {} }),
     profile: async () => ({ name: cfg.name || t('Speler'), avatar: null }),
     settings: { get: async () => ({ ...cfg }), set: async (p) => { cfg = { ...cfg, ...p }; saveCfg(); return { ...cfg }; } },
+    profiles: {
+      list: async () => mockProfiles.map((p) => ({ ...p, current: p.id === mockCurrent })),
+      create: async (name) => { const id = 'p' + mockProfiles.length; mockProfiles.push({ id, name, color: ['#ff6b8a', '#7ad66b', '#f5a524'][mockProfiles.length % 3] }); return { ok: true, id }; },
+      remove: async (id) => { const i = mockProfiles.findIndex((p) => p.id === id); if (i > 0) mockProfiles.splice(i, 1); return { ok: true }; },
+      switch: async (id) => { mockCurrent = id; return { ok: true }; },
+    },
     album: {
       take: async () => ({ ok: true }),
       list: async () => [

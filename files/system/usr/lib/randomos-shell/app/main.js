@@ -128,6 +128,22 @@ handle('games:state', () => launcher.state());
 handle('profile:get', () => games.profile());
 
 handle('settings:get', () => settings.load());
+// Spelers: wisselen = instellingen van die speler toepassen en het menu opnieuw laden
+handle('profiles:list', () => settings.listProfiles());
+handle('profiles:create', (name) => settings.createProfile(String(name || '')));
+handle('profiles:remove', (id) => settings.removeProfile(String(id || '')));
+handle('profiles:switch', (id) => {
+  const r = settings.switchProfile(String(id || ''));
+  if (r.ok) {
+    const s = settings.load();
+    try { overlay.setLevel(s.perfOverlay || 'off'); } catch {}
+    try { launcher.applyFps(launcher.currentGameId()); } catch {}
+    try { padswap.apply(!!s.swapAB); } catch {}
+    applyNight();
+    setTimeout(() => { if (win && !win.isDestroyed()) win.webContents.reload(); }, 150);
+  }
+  return r;
+});
 handle('settings:set', (patch) => {
   const r = settings.save(patch);
   if (patch && 'swapAB' in patch) padswap.apply(!!patch.swapAB);

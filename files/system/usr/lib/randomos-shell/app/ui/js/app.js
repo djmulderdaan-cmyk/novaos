@@ -80,6 +80,7 @@ async function boot() {
   updateGreeting();
   await introPromise;
   document.body.classList.add('ready');
+  setTimeout(() => { if (!UI.top()) askWhoPlays(); }, 700);
   Focus.first(startTab === 'library' ? 'grid' : 'rail');
   updateHints();
   const st = await nova.games.state();
@@ -174,7 +175,9 @@ async function loadProfile() {
   const p = await nova.profile();
   if (!p || p.error) return;
   $('#profileName').textContent = p.name;
+  S.profile = p;
   const av = $('#avatar');
+  if (!p.avatar) { av.style.backgroundImage = ''; av.textContent = (p.name || '?').slice(0, 1).toUpperCase(); if (p.color) av.style.background = p.color; }
   if (p.avatar) { av.style.backgroundImage = `url("${p.avatar}")`; av.textContent = ''; }
   else { av.style.backgroundImage = ''; av.textContent = (p.name || '?').slice(0, 1).toUpperCase(); }
 }
@@ -723,6 +726,7 @@ async function openQuickMenu() {
   items.push(await sleepTimerRow('qm'));
   if (S.game && S.game.phase === 'running') items.push(actionRow(t('Screenshot maken'), t('Van {title}, zonder dit menu erop', { title: S.game.title }), 'camera', () => { UI.closeModal(modal); takeScreenshot(); }, 'qm'));
   if (S.game) items.push(actionRow(t('{title} stoppen', { title: S.game.title }), t('Sluit de game die nu draait'), 'stop', () => { UI.closeModal(modal); stopGame(); }, 'qm'));
+  items.push(actionRow(t('Wissel van speler'), S.profile ? S.profile.name : null, 'apps', () => { UI.closeModal(modal); openProfiles(); }, 'qm'));
   items.push(actionRow(t('Instellingen'), null, 'apps', () => { UI.closeModal(modal); switchTab('settings'); }, 'qm'));
   items.push(actionRow(t('Aan/uit'), null, 'power', () => { UI.closeModal(modal); openPower(); }, 'qm'));
   let modal;
@@ -828,6 +832,48 @@ function openShot(items, start, onChanged) {
       h('button', { class: 'btn ghost', 'data-focus': true, 'data-group': 'shot', onclick: () => { Sounds.back(); UI.closeModal(modal); } }, t('Sluiten')))),
   { className: 'shot-modal' });
   show();
+}
+
+// ================================================================ spelers (profielen)
+function profileBadge(p, size = 64) {
+  return h('div', { class: 'pf-badge', style: { background: p.color || 'var(--accent)', width: size + 'px', height: size + 'px', fontSize: Math.round(size * 0.45) + 'px' } },
+    (p.name || t('Speler')).slice(0, 1).toUpperCase());
+}
+
+async function openProfiles({ startup = false } = {}) {
+  Sounds.open();
+  const list = await nova.profiles.list().catch(() => []);
+  let modal;
+  const pick = async (p) => {
+    try { sessionStorage.setItem('whoChosen', '1'); } catch {}
+    if (p.current) { UI.closeModal(modal); return; }
+    UI.closeModal(modal);
+    toast(t('Wisselen naar {name}…', { name: p.name || t('Speler') }), { icon: 'apps' });
+    await nova.profiles.switch(p.id);
+    if (!window.nova || !window.nova.__electron) setTimeout(() => location.reload(), 600); // in de browser-demo zelf herladen
+  };
+  const cards = list.map((p) => h('button', { class: `pf-card${p.current ? ' on' : ''}`, 'data-focus': true, 'data-group': 'profiles', 'data-autofocus': p.current ? true : null, onclick: () => pick(p) },
+    profileBadge(p, 84), h('div', { class: 'pf-name' }, p.name || (p.main ? (S.profile && S.profile.name) || t('Speler') : t('Speler'))),
+    p.current ? h('div', { class: 'pf-sub' }, t('Nu actief')) : null));
+  const add = h('button', { class: 'pf-card pf-add', 'data-focus': true, 'data-group': 'profiles', onclick: async () => {
+    const name = await OSK.open({ title: t('Naam van de nieuwe speler'), value: '' });
+    if (!name || !name.trim()) return;
+    const r = await nova.profiles.create(name.trim());
+    if (r && r.ok) { UI.closeModal(modal); toast(t('{name} toegevoegd', { name: name.trim() })); openProfiles({ startup }); }
+    else toast(tErr((r && r.error) || 'Mislukt'), { bad: true, icon: 'info' });
+  } }, h('div', { class: 'pf-badge pf-plus' }, '+'), h('div', { class: 'pf-name' }, t('Nieuwe speler')));
+  modal = UI.openModal(h('div', { class: 'sheet pf-sheet' },
+    h('h2', {}, startup ? t('Wie speelt er?') : t('Wissel van speler')),
+    h('p', { class: 'sub' }, t('Elke speler heeft eigen favorieten, speeltijd, thema en instellingen. Steam is gedeeld.')),
+    h('div', { class: 'pf-grid' }, ...cards, list.length < 8 ? add : null)),
+  { focus: () => Focus.first('profiles') });
+}
+
+// Bij het opstarten: meer dan één speler? Dan eerst kiezen (één keer per opstart)
+async function askWhoPlays() {
+  try { if (sessionStorage.getItem('whoChosen')) return; } catch {}
+  const list = await nova.profiles.list().catch(() => []);
+  if (list.length > 1) openProfiles({ startup: true });
 }
 
 // ================================================================ prestaties (Steam)

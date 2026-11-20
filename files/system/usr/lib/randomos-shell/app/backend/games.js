@@ -324,6 +324,11 @@ function profile() {
   const root = steamRoot();
   let name = s.name || '';
   let avatar = null;
+  const pid = settings.currentProfileId ? settings.currentProfileId() : 'main';
+  if (pid !== 'main') {
+    const me = settings.listProfiles().find((p) => p.current);
+    return { name: name || 'Speler', avatar: null, color: me ? me.color : null, profileId: pid };
+  }
   if (root) {
     const text = readText(path.join(root, 'config', 'loginusers.vdf')) || '';
     const blocks = [...text.matchAll(/"(\d{17})"\s*\{([^}]*)\}/g)];

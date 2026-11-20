@@ -88,6 +88,7 @@ const CATS = [
   { id: 'wifi', name: 'Wifi', icon: 'wifi' },
   { id: 'bt', name: 'Bluetooth', icon: 'bt' },
   { id: 'sound', name: 'Geluid & scherm', icon: 'sound' },
+  { id: 'players', name: 'Spelers', icon: 'apps' },
   { id: 'games', name: 'Games', icon: 'steam' },
   { id: 'storage', name: 'Opslag', icon: 'download' },
   { id: 'system', name: 'Systeem', icon: 'cpu' },
@@ -405,6 +406,23 @@ async function renderCat() {
     }
     out.push(group(t('Eigen games toevoegen'), h('div', { class: 'row static', style: { display: 'block', lineHeight: 1.6, color: 'var(--text-2)' } },
       ...tx('Ga naar de bureaubladmodus en zet je games in {file}. Epic-, GOG- en Amazon-games uit Heroic verschijnen vanzelf.', { file: h('b', { style: { color: 'var(--text)' } }, '~/.config/randomos/games.json') }))));
+  }
+
+  if (id === 'players') {
+    head(t('Spelers'), t('Elke speler heeft eigen favorieten, speeltijd, thema en instellingen. Steam is gedeeld.'));
+    const list = await nova.profiles.list().catch(() => []);
+    out.push(group(null, ...list.map((p) => {
+      const row = h('div', { class: 'row static' }, profileBadge(p, 40), rowText(p.name || (p.main ? (S.profile && S.profile.name) || t('Speler') : t('Speler')), p.current ? t('Nu actief') : null),
+        !p.main ? h('button', { class: 'btn ghost', 'data-focus': true, 'data-group': P, onclick: async () => {
+          const ok = await confirmBox(t('Speler verwijderen?'), t('{name} en al zijn of haar instellingen en speeltijd verdwijnen. Games blijven gewoon staan.', { name: p.name || t('Speler') }), t('Verwijderen'));
+          if (!ok) return;
+          const r = await nova.profiles.remove(p.id);
+          if (r && r.ok) { toast(t('Speler verwijderd')); if (p.current) location.reload(); else renderCat(); }
+        } }, h('span', { class: 'ico trash' }), t('Verwijderen')) : null);
+      return row;
+    }),
+    actionRow(t('Wissel van speler'), null, 'apps', () => openProfiles(), P),
+    actionRow(t('Nieuwe speler'), t('Bijvoorbeeld voor je vader, broer of een vriend'), 'apps', () => openProfiles(), P)));
   }
 
   if (id === 'storage') {

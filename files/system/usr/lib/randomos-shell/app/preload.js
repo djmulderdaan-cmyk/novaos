@@ -21,6 +21,7 @@ contextBridge.exposeInMainWorld('nova', {
   },
   profile: call('profile:get'),
   settings: { get: call('settings:get'), set: call('settings:set') },
+  profiles: { list: call('profiles:list'), create: call('profiles:create'), remove: call('profiles:remove'), switch: call('profiles:switch') },
   customSounds: call('sounds:custom'),
   album: { take: call('album:take'), list: call('album:list'), remove: call('album:remove'), pictures: call('album:pictures') },
   sys: {
