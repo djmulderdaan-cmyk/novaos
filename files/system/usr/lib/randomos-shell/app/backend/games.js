@@ -299,7 +299,7 @@ function listCustom() {
       playtime: 0,
       art: { cover: img(g.cover), hero: img(g.hero || g.cover), logo: img(g.logo), header: [] },
       // Unity-games, en Windows-games via umu/Proton (vaak alleen toetsenbord/muis)
-      unity: detectUnity(g.cmd) || /umu-run|\.exe/i.test(g.cmd),
+      unity: detectUnity(g.cmd) || /\bumu-run\b|\.exe\b/i.test(g.cmd),
       launch: { type: 'custom', cmd: g.cmd, windowClass: g.windowClass || null },
     };
   });
