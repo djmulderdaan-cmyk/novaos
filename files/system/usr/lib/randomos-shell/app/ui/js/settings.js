@@ -370,7 +370,15 @@ async function renderCat() {
     out.push(group(t('Bronnen'), ...counts.map(([src, n]) => h('div', { class: 'row static' }, h('span', { class: `badge ${src}` }, SOURCE_NAMES[src]), h('div', { class: 'r-main' }), h('span', { class: 'r-val' }, n === 1 ? t('1 game') : t('{n} games', { n }))))));
     out.push(group(t('Acties'),
       actionRow(t('Bibliotheek vernieuwen'), t('Zoek opnieuw naar geïnstalleerde games'), 'refresh', async () => { await loadGames(); rerenderAll(); renderCat(); toast(t('{n} games gevonden', { n: S.games.length })); }, P),
-      actionRow(t('Steam Big Picture openen'), t('Winkel, downloads en Steam-instellingen'), 'steam', () => openSteamFront(), P)));
+      actionRow(t('Steam Big Picture openen'), t('Winkel, downloads en Steam-instellingen'), 'steam', () => openSteamFront(), P),
+      actionRow(t('Vrienden'), t('Je Steam-vriendenlijst: wie er online is en chatten'), 'steam', () => { if (nova.sys.steamFriends) nova.sys.steamFriends(); }, P)));
+    const withAch = S.games.filter((g) => g.ach).sort((a, b) => b.ach.unlocked - a.ach.unlocked);
+    if (withAch.length) {
+      const got = withAch.reduce((n, g) => n + g.ach.unlocked, 0), all = withAch.reduce((n, g) => n + g.ach.total, 0);
+      out.push(group(t('Prestaties'),
+        h('div', { class: 'row static' }, rowText(t('Totaal'), t('{n} games met prestaties', { n: withAch.length })), h('span', { class: 'r-val' }, `${got}/${all}`)),
+        ...withAch.slice(0, 6).map((g) => actionRow(g.title, null, 'trophy', () => openAchievements(g), P, `${g.ach.unlocked}/${g.ach.total}`))));
+    }
     // apps die geïnstalleerd zijn maar nog geen tegel hebben (Firefox, Haruna, YouTube, ...)
     const apps = await nova.games.apps().catch(() => []);
     out.push(group(t('Apps toevoegen'), ...(apps.length ? apps.map((a) => {

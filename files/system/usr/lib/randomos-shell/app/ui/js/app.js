@@ -165,6 +165,9 @@ function playIntro() {
 async function loadGames() {
   const list = await nova.games.list();
   S.games = Array.isArray(list) ? list : [];
+  // prestaties (Steam) erbij: { appid: { unlocked, total } }
+  const sum = nova.games.achSummary ? await nova.games.achSummary().catch(() => null) : null;
+  if (sum) for (const g of S.games) { const a = g.launch && sum[String(g.launch.appid)]; if (a && g.source === 'steam') g.ach = a; }
 }
 
 async function loadProfile() {
@@ -530,6 +533,9 @@ function openDetail(g) {
         h('span', { class: `badge ${g.source}` }, SOURCE_NAMES[g.source]),
         h('h2', { style: { marginTop: '10px' } }, g.title),
         gameFpsRow(g),
+        g.ach ? h('button', { class: 'ach-chip', 'data-focus': true, onclick: () => { UI.closeModal(modal); openAchievements(g); } },
+          h('span', { class: 'ico trophy' }), t('Prestaties {u}/{n}', { u: g.ach.unlocked, n: g.ach.total }),
+          h('div', { class: 'dl-bar' }, h('div', { class: 'dl-fill', style: { width: `${Math.round((g.ach.unlocked / g.ach.total) * 100)}%` } }))) : null,
         h('div', { class: 'stats' }, stat(t('Laatst gespeeld'), relTime(g.lastPlayed) || t('Nog nooit')), stat(t('Speeltijd'), playtimeText(g.playtime) || '—'), stat(t('Grootte'), size)),
         h('div', { class: 'd-actions' },
           h('button', { class: 'btn primary', 'data-focus': true, 'data-autofocus': true, onclick: () => { UI.closeModal(modal); launch(g); } }, h('span', { class: 'ico play' }), t('Spelen')),
@@ -822,6 +828,29 @@ function openShot(items, start, onChanged) {
       h('button', { class: 'btn ghost', 'data-focus': true, 'data-group': 'shot', onclick: () => { Sounds.back(); UI.closeModal(modal); } }, t('Sluiten')))),
   { className: 'shot-modal' });
   show();
+}
+
+// ================================================================ prestaties (Steam)
+async function openAchievements(g) {
+  Sounds.open();
+  const r = await nova.games.achievements(g.launch.appid).catch(() => null);
+  let modal;
+  const body = h('div', { class: 'ach-list' });
+  if (!r) body.append(h('p', { class: 'sub' }, t('Geen prestaties gevonden. Start de game één keer via Steam.')));
+  else {
+    for (const a of r.list) {
+      const secret = a.hidden && !a.unlocked;
+      body.append(h('div', { class: `row static ach-row${a.unlocked ? ' got' : ''}`, 'data-focus': true, 'data-group': 'ach' },
+        h('img', { class: 'ach-ico', src: (a.unlocked ? a.icon : a.iconGray) || a.icon || '', alt: '', loading: 'lazy' }),
+        rowText(secret ? t('Geheime prestatie') : a.name, secret ? t('Speel verder om hem te ontdekken.') : a.desc),
+        h('span', { class: 'r-val' }, a.unlocked ? (a.time ? new Date(a.time).toLocaleDateString(I18N.locale, { day: 'numeric', month: 'short', year: 'numeric' }) : '✓') : '')));
+    }
+  }
+  const pct = r ? Math.round((r.unlocked / r.total) * 100) : 0;
+  modal = UI.openModal(h('div', { class: 'sheet album-sheet ach-sheet' },
+    h('h2', {}, t('Prestaties · {title}', { title: g.title })),
+    r ? h('div', { class: 'ach-head' }, h('b', {}, t('{u} van {n} behaald ({p}%)', { u: r.unlocked, n: r.total, p: pct })), h('div', { class: 'dl-bar store-bar' }, h('div', { class: 'dl-fill', style: { width: pct + '%' } }))) : null,
+    body), { focus: () => Focus.first('ach') });
 }
 
 // ================================================================ knoppen instellen (controller als toetsenbord)

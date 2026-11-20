@@ -371,6 +371,15 @@ function onShellFocus() {
   }
 }
 
+// Steam-vriendenlijst (een Steam-venster; terug met de Home-knop of door het te sluiten)
+function openSteamFriends() {
+  ensureSteam();
+  spawn('steam', ['steam://open/friends'], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
+  gamescope.focusSteam();
+  watchSteamFront();
+  return { ok: true };
+}
+
 function openSteamBigPicture() {
   ensureSteam();
   spawn('steam', ['steam://open/bigpicture'], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
@@ -567,4 +576,4 @@ function focusShell() {
   return { ok: true };
 }
 
-module.exports = { applyFps, currentGameId: () => (current ? current.game.id : null), showShellOverGame, resumeGame, watchdog, setEmitter, setSteamEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture, steamStatus, steamLogin, focusShell };
+module.exports = { openSteamFriends, applyFps, currentGameId: () => (current ? current.game.id : null), showShellOverGame, resumeGame, watchdog, setEmitter, setSteamEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture, steamStatus, steamLogin, focusShell };

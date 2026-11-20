@@ -12,6 +12,7 @@ const updates = require('./backend/updates');
 const overlay = require('./backend/overlay');
 const padswap = require('./backend/padswap');
 const album = require('./backend/album');
+const achievements = require('./backend/achievements');
 
 app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,SpareRendererForSitePerProcess');
@@ -112,6 +113,10 @@ handle('games:stop', () => launcher.stop());
 handle('games:show-shell', () => launcher.showShellOverGame());
 handle('games:resume', () => launcher.resumeGame());
 handle('games:apps', () => games.listApps());
+const achLang = () => (settings.load().lang === 'en' ? 'english' : 'dutch'); // Nederlands bestaat zelden: dan Engels
+handle('games:achievements', (appid) => { const r = games.steamRoot(); return r && /^\d+$/.test(String(appid)) ? achievements.forGame(r, String(appid), achLang()) : null; });
+handle('games:ach-summary', () => { const r = games.steamRoot(); return r ? achievements.summary(r) : {}; });
+handle('sys:steam-friends', () => launcher.openSteamFriends());
 handle('games:downloads', () => games.listDownloads());
 handle('album:take', (title) => album.take(String(title || '')));
 handle('album:list', () => album.list());

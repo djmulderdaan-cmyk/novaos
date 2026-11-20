@@ -63,6 +63,13 @@ if (!window.nova) {
         dlDone = Math.min(dlTotal, dlDone + 180e6);
         return dlDone < dlTotal ? [{ appid: '1145360', title: 'Hades', total: dlTotal, done: dlDone, pct: Math.floor((dlDone / dlTotal) * 100), update: false }] : [];
       },
+      achSummary: async () => ({ '1145360': { unlocked: 12, total: 49 } }),
+      achievements: async () => ({ appid: '1145360', total: 4, unlocked: 2, list: [
+        { name: 'Is There Anybody Out There?', desc: 'Ontsnap uit de onderwereld.', unlocked: true, time: Date.now() - 86400000, icon: 'img/mascot.png', iconGray: 'img/mascot.png' },
+        { name: 'Friends Forever', desc: 'Maak een vriend.', unlocked: true, time: Date.now() - 3 * 86400000, icon: 'img/mascot.png', iconGray: 'img/mascot.png' },
+        { name: 'Weapon Master', desc: 'Win met elk wapen.', unlocked: false, icon: 'img/mascot.png', iconGray: 'img/mascot.png' },
+        { name: 'Secret', desc: '', hidden: true, unlocked: false, iconGray: 'img/mascot.png' },
+      ] }),
       apps: async () => [{ id: 'org.mozilla.firefox', name: 'Firefox', icon: null }, { id: 'org.kde.haruna', name: 'Haruna', icon: null }],
       addApp: async (id) => ({ ok: true, name: id }),
       remove: async () => ({ ok: true }),
@@ -127,6 +134,7 @@ if (!window.nova) {
       power: async (a) => { toast(t('Demo: "{a}" zou nu uitgevoerd worden', { a }), { icon: 'power' }); return { ok: true }; },
       steamStatus: async () => ({ running: true, loggedIn: !/steam-uit/.test(location.hash), signInOpen: false }),
       steamLogin: async () => ({ ok: true }),
+      steamFriends: async () => ({ ok: true }),
       focusShell: async () => ({ ok: true }),
       perfOverlay: async (l) => ({ available: true, level: l }),
       perfAvailable: async () => ({ available: true }),
