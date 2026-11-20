@@ -21,7 +21,39 @@ function battery() {
   const bat = dirs.find((d) => d.startsWith('BAT'));
   if (!bat) return null;
   const base = `/sys/class/power_supply/${bat}`;
-  return { level: Number(read(`${base}/capacity`) || 0), status: read(`${base}/status`) || 'Unknown' };
+  const status = read(`${base}/status`) || 'Unknown';
+  // resterende tijd: energie / verbruik (of lading / stroom bij batterijen die dat zo melden)
+  let minutesLeft = null;
+  const pn = Number(read(`${base}/power_now`) || 0), en = Number(read(`${base}/energy_now`) || 0);
+  const cn = Number(read(`${base}/current_now`) || 0), ch = Number(read(`${base}/charge_now`) || 0);
+  if (status === 'Discharging') {
+    if (pn > 0 && en > 0) minutesLeft = Math.round((en / pn) * 60);
+    else if (cn > 0 && ch > 0) minutesLeft = Math.round((ch / cn) * 60);
+    if (minutesLeft != null && (minutesLeft < 1 || minutesLeft > 24 * 60)) minutesLeft = null;
+  }
+  return { level: Number(read(`${base}/capacity`) || 0), status, minutesLeft };
+}
+
+// CPU-temperatuur in °C (coretemp/k10temp, anders de ACPI-zone)
+function cpuTemp() {
+  let dirs;
+  try { dirs = fs.readdirSync('/sys/class/hwmon'); } catch { return null; }
+  let fallback = null;
+  for (const d of dirs) {
+    const base = `/sys/class/hwmon/${d}`;
+    const name = read(`${base}/name`) || '';
+    const v = Number(read(`${base}/temp1_input`) || 0);
+    if (!v) continue;
+    if (/coretemp|k10temp|zenpower|cpu_thermal/.test(name)) return Math.round(v / 1000);
+    if (name === 'acpitz' && fallback == null) fallback = Math.round(v / 1000);
+  }
+  return fallback;
+}
+
+// FPS-limiet voor games via gamescope (0 = geen limiet)
+function setFpsLimit(fps) {
+  const n = Math.max(0, Math.min(240, Number(fps) || 0));
+  return run('xprop', ['-root', '-f', 'GAMESCOPE_FPS_LIMIT', '32c', '-set', 'GAMESCOPE_FPS_LIMIT', String(n)]);
 }
 
 // Batterij van draadloze controllers (Xbox/PlayStation/Switch via Bluetooth of dongle)
@@ -82,7 +114,7 @@ async function bluetooth() {
 
 async function status() {
   const [wifi, vol, bright, bt] = await Promise.all([wifiStatus(), volume(), brightness(), bluetooth()]);
-  return { battery: battery(), pads: padBatteries(), wifi, volume: vol, brightness: bright, bluetooth: bt };
+  return { battery: battery(), pads: padBatteries(), temp: cpuTemp(), wifi, volume: vol, brightness: bright, bluetooth: bt };
 }
 
 async function info() {
@@ -197,4 +229,4 @@ async function power(action, app) {
   }
 }
 
-module.exports = { status, info, setVolume, toggleMute, setBrightness, wifiList, wifiConnect, wifiRadio, btPower, btDevices, btScan, btConnect, btDisconnect, power };
+module.exports = { setFpsLimit, status, info, setVolume, toggleMute, setBrightness, wifiList, wifiConnect, wifiRadio, btPower, btDevices, btScan, btConnect, btDisconnect, power };

@@ -38,6 +38,7 @@ contextBridge.exposeInMainWorld('nova', {
     power: call('sys:power'),
     openSteam: call('sys:open-steam'),
     perfOverlay: call('perf:overlay'),
+    fpsLimit: call('perf:fps-limit'),
     perfAvailable: call('perf:available'),
     steamStatus: call('sys:steam-status'),
     steamLogin: call('sys:steam-login'),

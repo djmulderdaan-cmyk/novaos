@@ -191,6 +191,7 @@ main { position: relative; overflow: hidden; }
 .dl-list { display: flex; flex-direction: column; gap: 10px; margin: 6px 0 18px; }
 .dl-row .r-main { width: 100%; }
 .ico.download { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M12 3v12M7 10l5 5 5-5' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/><path d='M4 19h16' stroke='black' stroke-width='2.2' stroke-linecap='round'/></svg>"); }
+.qm-card .v.hot { color: #ff7a8a; }
 .app-ico { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; margin-right: 14px; flex: 0 0 auto; }
 .ico.dice { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='3' y='3' width='18' height='18' rx='4' fill='none' stroke='black' stroke-width='2'/><circle cx='8' cy='8' r='1.6'/><circle cx='16' cy='8' r='1.6'/><circle cx='12' cy='12' r='1.6'/><circle cx='8' cy='16' r='1.6'/><circle cx='16' cy='16' r='1.6'/></svg>"); }
 .ico.trash { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/></svg>"); }

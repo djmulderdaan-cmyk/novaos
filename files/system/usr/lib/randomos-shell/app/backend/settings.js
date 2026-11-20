@@ -10,6 +10,7 @@ const DEFAULTS = {
   accent: '#2aa8e8',
   lang: 'auto',
   perfOverlay: 'off',
+  fpsLimit: 0, // 0 = geen limiet
   sounds: true,
   ambient: true,
   intro: true,

@@ -147,6 +147,7 @@ handle('sys:steam-status', () => launcher.steamStatus());
 handle('sys:steam-login', () => launcher.steamLogin());
 handle('sys:focus-shell', () => launcher.focusShell());
 handle('perf:overlay', (level) => overlay.setLevel(level));
+handle('perf:fps-limit', async (fps) => { settings.save({ fpsLimit: Number(fps) || 0 }); return system.setFpsLimit(fps); });
 
 // Slaaptimer: na X minuten gaat de laptop slapen (ook tijdens een game)
 let sleepTimer = null, sleepAt = 0, sleepMin = 0;
@@ -173,6 +174,7 @@ app.on('child-process-gone', (_e, d) => console.log('[main] hulpproces weg:', d 
 app.whenReady().then(() => {
   launcher.ensureSteam();
   try { overlay.setLevel(settings.load().perfOverlay || 'off'); } catch {}
+  try { system.setFpsLimit(settings.load().fpsLimit || 0); } catch {}
   padswap.onChange((on) => send('pad:sysswap', on));
   try { padswap.apply(!!settings.load().swapAB); } catch {}
   setInterval(() => { padswap.sync(); }, 5000);

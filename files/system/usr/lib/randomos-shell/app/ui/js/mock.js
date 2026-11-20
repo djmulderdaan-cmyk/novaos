@@ -81,11 +81,13 @@ if (!window.nova) {
       remove: async () => ({ ok: true }),
     },
     sys: {
+      fpsLimit: async () => ({ ok: true }),
       sleepTimer: async (min) => (min ? { at: Date.now() + min * 60000, min } : { at: 0, min: 0 }),
       sleepTimerGet: async () => ({ at: 0, min: 0 }),
       status: async () => ({
         pads: [{ name: 'Xbox Wireless Controller', level: 62, charging: false }],
-        battery: { level: 76, status: 'Discharging' },
+        temp: 58,
+        battery: { level: 76, status: 'Discharging', minutesLeft: 134 },
         wifi: { available: true, enabled: wifiOn, ssid: wifiOn ? 'Thuisnetwerk' : null, signal: 78 },
         volume: { available: true, level: vol, muted },
         brightness: { available: true, level: bright },

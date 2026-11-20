@@ -139,6 +139,7 @@ Het hoofdmenu van RandomOS. Bediening:
 - **Screenshots:** tijdens een game Home-knop → snelmenu → *Screenshot maken*. Ze staan in **Album** (Home) en in `~/Pictures/RandomOS`; Steam-screenshots staan er ook in
 - **Downloads:** Steam-downloads en -updates met voortgang op Home, en een melding als een game klaar is om te spelen
 - **Controllerbatterij** van draadloze controllers in de statusbalk en het snelmenu
+- **FPS-limiet** (20/30/45) in het snelmenu en bij Energie: langer spelen op de batterij; plus **temperatuur** en **resterende batterijtijd** in het snelmenu
 - **Unity- en .exe-games** zonder controller-ondersteuning: je controller werkt als toetsenbord en muis (per game aan/uit bij *Info*)
 
 **Toetsenbord & muis** werken ook overal:

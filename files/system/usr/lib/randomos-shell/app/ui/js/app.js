@@ -650,6 +650,16 @@ if (nova.onSysSwap) {
 
 // ================================================================ snelmenu
 // Prestatie-overlay (FPS-meter) kiezen: Uit / FPS / Uitgebreid
+function fpsLimitRow(group) {
+  return choiceRow(t('FPS-limiet'), t('Lager = langer spelen op je batterij en een koelere laptop'), [[0, t('Uit')], [20, '20'], [30, '30'], [45, '45']],
+    Number(S.settings.fpsLimit) || 0, async (v) => { S.settings.fpsLimit = v; await nova.sys.fpsLimit(v); }, group);
+}
+
+function timeLeft(min) {
+  if (min == null) return null;
+  return min < 60 ? t('nog {n} min', { n: min }) : t('nog {h}:{m} uur', { h: Math.floor(min / 60), m: String(min % 60).padStart(2, '0') });
+}
+
 function perfOverlayRow(group) {
   return choiceRow(t('Prestatie-overlay'), t('FPS-meter tijdens het gamen'), [['off', t('Uit')], ['fps', 'FPS'], ['full', t('Uitgebreid')]],
     S.settings.perfOverlay || 'off', async (v) => { await saveSettings({ perfOverlay: v }); nova.sys.perfOverlay(v); }, group);
@@ -663,7 +673,9 @@ async function openQuickMenu() {
     h('div', { class: 'qm-time' }, now.toLocaleTimeString(I18N.locale, { hour: '2-digit', minute: '2-digit', hour12: !!S.settings.clock12 })),
     h('div', { class: 'qm-date' }, now.toLocaleDateString(I18N.locale, { weekday: 'long', day: 'numeric', month: 'long' })),
     h('div', { class: 'qm-cards' },
-      h('div', { class: 'qm-card' }, h('div', { class: 'k' }, t('Batterij')), h('div', { class: 'v' }, s.battery ? (s.battery.status === 'Charging' ? t('{n}% · laadt', { n: s.battery.level }) : `${s.battery.level}%`) : t('Netstroom'))),
+      h('div', { class: 'qm-card' }, h('div', { class: 'k' }, t('Batterij')), h('div', { class: 'v' }, s.battery ? (s.battery.status === 'Charging' ? t('{n}% · laadt', { n: s.battery.level }) : `${s.battery.level}%`) : t('Netstroom')),
+        s.battery && timeLeft(s.battery.minutesLeft) ? h('div', { class: 'k' }, timeLeft(s.battery.minutesLeft)) : null),
+      s.temp ? h('div', { class: 'qm-card' }, h('div', { class: 'k' }, t('Temperatuur')), h('div', { class: `v${s.temp >= 90 ? ' hot' : ''}` }, `${s.temp}°C`)) : null,
       h('div', { class: 'qm-card' }, h('div', { class: 'k' }, t('Wifi')), h('div', { class: 'v' }, s.wifi.enabled ? (s.wifi.ssid || t('Niet verbonden')) : t('Uit')))),
     ...(s.pads || []).map((p) => h('div', { class: 'qm-card qm-now' }, h('div', { class: 'k' }, t('Controller')), h('div', { class: 'v' }, `${p.level}%${p.charging ? ' · ' + t('laadt') : ''}`), h('div', { class: 'k' }, p.name))),
   ];
@@ -675,6 +687,7 @@ async function openQuickMenu() {
   if (s.volume.available) items.push(sliderRow(t('Volume'), s.volume.level, (v) => nova.sys.volume(v)));
   if (s.brightness.available) items.push(sliderRow(t('Helderheid'), s.brightness.level, (v) => nova.sys.brightness(v), { min: 5 }));
   items.push(perfOverlayRow('qm'));
+  items.push(fpsLimitRow('qm'));
   items.push(await sleepTimerRow('qm'));
   if (S.game && S.game.phase === 'running') items.push(actionRow(t('Screenshot maken'), t('Van {title}, zonder dit menu erop', { title: S.game.title }), 'camera', () => { UI.closeModal(modal); takeScreenshot(); }, 'qm'));
   if (S.game) items.push(actionRow(t('{title} stoppen', { title: S.game.title }), t('Sluit de game die nu draait'), 'stop', () => { UI.closeModal(modal); stopGame(); }, 'qm'));
