@@ -144,6 +144,9 @@ Het hoofdmenu van RandomOS. Bediening:
 - **Opslag** (Instellingen): hoe vol je schijf is en je grootste games
 - **Volume- en helderheidstoetsen** van de laptop werken overal (ook tijdens een game), met een balkje bovenin het menu
 - **Aan/uit-knop** van de laptop: in het menu het aan/uit-menu (nog een keer = slaapstand), tijdens een game meteen slaapstand
+- **Home-sneltoetsen** (ook in games): Home + RB = screenshot, Home + LB = FPS-meter, Home + ↑/↓ = volume
+- **Nachtlicht** (aan / uit / 20:00–07:00, met sterkte): warmere kleuren, ook in games
+- **Eigen achtergrond:** kies een foto uit Afbeeldingen of je screenshots (ook via *Als achtergrond* in het Album)
 - **Unity- en .exe-games** zonder controller-ondersteuning: je controller werkt als toetsenbord en muis (per game aan/uit bij *Info*); bij *Info → Knoppen instellen* kies je per knop welke toets of muisknop hij is, en of de sticks WASD, pijltjes of de muis zijn
 
 **Toetsenbord & muis** werken ook overal:

@@ -399,6 +399,7 @@ body[data-bg="space"] #bg { background:
 body[data-bg="space"] #bg::after { content: ""; position: absolute; inset: 0; opacity: .5;
   background-image: radial-gradient(1px 1px at 20% 30%, #fff, transparent), radial-gradient(1px 1px at 70% 60%, #fff, transparent), radial-gradient(1.5px 1.5px at 40% 80%, #fff, transparent), radial-gradient(1px 1px at 85% 20%, #fff, transparent), radial-gradient(1px 1px at 55% 15%, #fff, transparent);
   background-size: 420px 420px; }
+body[data-bg="photo"] #bg { background: var(--bg-photo) center / cover no-repeat, var(--bg); }
 body[data-bg="plain"] #bg { background: linear-gradient(180deg, var(--bg-2), var(--bg)); }
 body[data-tiles="small"] { --tile-w: clamp(108px, 8.4vw, 158px); }
 body[data-tiles="large"] { --tile-w: clamp(164px, 13vw, 244px); }

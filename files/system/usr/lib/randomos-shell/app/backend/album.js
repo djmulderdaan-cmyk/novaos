@@ -85,6 +85,25 @@ function list() {
   return items.sort((a, b) => b.date - a.date).slice(0, 300);
 }
 
+/** Foto's voor de achtergrond: ~/Pictures (en mapjes daarin) plus alle screenshots. */
+function pictures() {
+  const base = path.join(HOME, 'Pictures');
+  const out = [];
+  const add = (dir, depth) => {
+    let entries = [];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const en of entries) {
+      const p = path.join(dir, en.name);
+      if (en.isDirectory() && depth < 2 && !en.name.startsWith('.')) add(p, depth + 1);
+      else if (en.isFile() && /\.(png|jpe?g|webp)$/i.test(en.name)) out.push({ path: p, url: fileUrl(p), date: mtime(p), game: path.basename(en.name).replace(/\.[^.]+$/, '') });
+    }
+  };
+  add(base, 0);
+  const seen = new Set(out.map((x) => x.path));
+  for (const s of list()) if (!seen.has(s.path)) out.push(s);
+  return out.sort((a, b) => b.date - a.date).slice(0, 300);
+}
+
 /** Verwijderen: alleen bestanden uit onze eigen map of Steams screenshot-mappen. */
 function remove(p) {
   const real = path.resolve(String(p || ''));
@@ -96,4 +115,4 @@ function remove(p) {
   return { ok: true };
 }
 
-module.exports = { take, list, remove, DIR };
+module.exports = { take, list, remove, pictures, DIR };

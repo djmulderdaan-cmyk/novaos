@@ -11,6 +11,8 @@ const DEFAULTS = {
   lang: 'auto',
   perfOverlay: 'off',
   fpsLimit: 0, // 0 = geen limiet
+  night: 'off', // nachtlicht: 'off' | 'on' | 'auto' (20:00-07:00)
+  nightStrength: 50,
   fpsGame: {}, // gameId -> eigen FPS-limiet voor die game
   padKeys: {}, // gameId -> eigen knoppenindeling voor controller-als-toetsenbord
   sounds: true,

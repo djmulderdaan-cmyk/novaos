@@ -48,11 +48,19 @@ const Input = (() => {
 
   function press(action, now) {
     const s = held[action];
+    // Home ingedrukt + andere knop = sneltoets (Home doet dan zelf niks bij loslaten)
+    if (!s && action !== 'guide' && held.guide) {
+      held.guide.used = true;
+      held[action] = { since: now, last: now, combo: true };
+      emit('combo', { btn: action, source: 'pad' });
+      return;
+    }
     if (!s) { held[action] = { since: now, last: now }; emit(action, { source: 'pad' }); return; }
+    if (s.combo) return;
     const [delay, rate] = SPEEDS[api.speed] || SPEEDS.normal;
     const dir = ['up', 'down', 'left', 'right'].includes(action);
     if (dir && now - s.since > delay && now - s.last > rate) { s.last = now; emit(action, { repeat: true, source: 'pad' }); }
-    if (action === 'guide' && !s.long && now - s.since > 900) { s.long = true; emit('guide-long', { source: 'pad' }); }
+    if (action === 'guide' && !s.long && !s.used && now - s.since > 900) { s.long = true; emit('guide-long', { source: 'pad' }); }
   }
 
   function poll() {
@@ -82,7 +90,7 @@ const Input = (() => {
     for (const a of Object.keys(held)) {
       if (active.has(a)) continue;
       // Home kort ingedrukt (niet lang): apart signaal bij loslaten
-      if (a === 'guide' && !held[a].long) emit('guide-up', { source: 'pad' });
+      if (a === 'guide' && !held[a].long && !held[a].used) emit('guide-up', { source: 'pad' });
       delete held[a];
     }
     schedule();

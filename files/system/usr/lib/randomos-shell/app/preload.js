@@ -20,7 +20,7 @@ contextBridge.exposeInMainWorld('nova', {
   profile: call('profile:get'),
   settings: { get: call('settings:get'), set: call('settings:set') },
   customSounds: call('sounds:custom'),
-  album: { take: call('album:take'), list: call('album:list'), remove: call('album:remove') },
+  album: { take: call('album:take'), list: call('album:list'), remove: call('album:remove'), pictures: call('album:pictures') },
   sys: {
     status: call('sys:status'),
     info: call('sys:info'),
@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld('nova', {
     openSteam: call('sys:open-steam'),
     perfOverlay: call('perf:overlay'),
     fpsLimit: call('perf:fps-limit'),
+    night: call('sys:night'),
     fpsGame: call('perf:fps-game'),
     storage: call('sys:storage'),
     perfAvailable: call('perf:available'),

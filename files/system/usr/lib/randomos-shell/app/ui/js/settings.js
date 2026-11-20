@@ -33,7 +33,8 @@ function applyLook() {
   root.setProperty('--bg-2', th.bg2);
   root.fontSize = TEXT_SIZES[s.text] || TEXT_SIZES.normal;
   const b = document.body;
-  b.dataset.bg = s.bgStyle || 'art';
+  b.dataset.bg = s.bgStyle === 'photo' && !s.bgPhoto ? 'art' : (s.bgStyle || 'art');
+  document.documentElement.style.setProperty('--bg-photo', s.bgPhoto ? `url("${s.bgPhoto}")` : 'none');
   b.dataset.tiles = s.tiles || 'normal';
   b.classList.toggle('titles', !!s.titles);
   b.classList.toggle('reduce', !!s.reduceMotion);
@@ -164,7 +165,9 @@ async function renderCat() {
     out.push(group(t('Accentkleur'), sw));
 
     out.push(group(t('Weergave'),
-      choiceRow(t('Achtergrond'), t('Wat er achter het menu te zien is'), [['art', t('Game-art')], ['space', t('Ruimte')], ['plain', t('Effen')]], s.bgStyle || 'art', set('bgStyle'), P),
+      choiceRow(t('Achtergrond'), t('Wat er achter het menu te zien is'), [['art', t('Game-art')], ['space', t('Ruimte')], ['plain', t('Effen')], ['photo', t('Eigen foto')]], s.bgStyle || 'art',
+        (v) => { if (v === 'photo' && !S.settings.bgPhoto) pickBackground(); else set('bgStyle')(v); }, P),
+      actionRow(t('Foto kiezen'), t('Uit je map Afbeeldingen of je screenshots'), 'image', () => pickBackground(), P),
       choiceRow(t('Tegels'), null, [['small', t('Klein')], ['normal', t('Normaal')], ['large', t('Groot')]], s.tiles || 'normal', set('tiles', () => rerenderAll()), P),
       toggleRow(t('Titels altijd tonen'), t('Naam onder elke game, niet alleen bij selectie'), s.titles, set('titles'), P),
       choiceRow(t('Tekstgrootte'), null, [['normal', t('Normaal')], ['large', t('Groot')], ['xl', t('Extra groot')]], s.text || 'normal', set('text'), P)));
@@ -353,7 +356,10 @@ async function renderCat() {
     if (st.volume.available) out.push(group(t('Geluid'),
       sliderRow(t('Volume'), st.volume.level, (v) => nova.sys.volume(v), { group: P }),
       toggleRow(t('Dempen'), null, st.volume.muted, () => nova.sys.mute(), P)));
-    if (st.brightness.available) out.push(group(t('Scherm'), sliderRow(t('Helderheid'), st.brightness.level, (v) => nova.sys.brightness(v), { min: 5, group: P })));
+    out.push(group(t('Scherm'),
+      st.brightness.available ? sliderRow(t('Helderheid'), st.brightness.level, (v) => nova.sys.brightness(v), { min: 5, group: P }) : null,
+      nightRow(P),
+      sliderRow(t('Sterkte nachtlicht'), Number(s.nightStrength) || 50, async (v) => { S.settings.nightStrength = v; await nova.sys.night(null, v); }, { min: 10, step: 10, group: P })));
     out.push(group(t('Prestaties'), perfOverlayRow(P)));
     if (!st.volume.available && !st.brightness.available) out.push(h('p', { class: 'sub' }, t('Geen geluid of scherm gevonden om te regelen.')));
   }
@@ -451,9 +457,12 @@ async function renderCat() {
     out.push(group(t('Bediening'), h('div', { class: 'row static', style: { display: 'grid', gridTemplateColumns: 'max-content 1fr', gap: '12px 18px', alignItems: 'center' } },
       glyph('a'), t('Kiezen / spelen'), glyph('b'), t('Terug'), glyph('x'), t('Favoriet maken'), glyph('y'), t('Snelmenu'),
       h('span', { style: { display: 'flex', gap: '4px' } }, glyph('lb'), glyph('rb')), t('Tabblad wisselen'),
-      glyph('start'), t('Aan/uit-menu'), glyph('guide'), t('Naar Home (ingedrukt houden tijdens een game: game stoppen)'))));
+      glyph('start'), t('Aan/uit-menu'), glyph('guide'), t('Naar Home (ingedrukt houden tijdens een game: game stoppen)'),
+      h('span', { style: { display: 'flex', gap: '4px' } }, glyph('guide'), glyph('rb')), t('Screenshot (ook tijdens een game)'),
+      h('span', { style: { display: 'flex', gap: '4px' } }, glyph('guide'), glyph('lb')), t('FPS-meter aan/uit'),
+      h('span', { style: { display: 'flex', gap: '4px' } }, glyph('guide'), h('b', {}, '↑ ↓')), t('Volume harder/zachter'))));
     out.push(group(t('Handig om te weten'), ...[
-      [t('Screenshot'), t('Tijdens een game: Home-knop → snelmenu → Screenshot maken. Ze staan in Album op Home.')],
+      [t('Screenshot'), t('Houd Home ingedrukt en druk op RB, ook midden in een game. Ze staan in Album op Home.')],
       [t('Langer spelen op de batterij'), t('Zet een FPS-limiet in het snelmenu, of per game bij Info.')],
       [t('Apps toevoegen'), t('Instellingen → Games → Apps toevoegen. Firefox, YouTube en andere apps worden dan tegels.')],
       [t('Eigen games'), t('Unity- en .exe-games: bij Info kies je welke toets elke controllerknop is.')],

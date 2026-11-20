@@ -669,6 +669,12 @@ function gameFpsRow(g) {
   return row;
 }
 
+// Nachtlicht: uit / aan / automatisch 's avonds
+function nightRow(group) {
+  return choiceRow(t('Nachtlicht'), t('Warmere kleuren, prettiger voor je ogen in het donker'), [['off', t('Uit')], ['on', t('Aan')], ['auto', t('20:00–07:00')]],
+    S.settings.night || 'off', async (v) => { S.settings.night = v; await nova.sys.night(v); }, group);
+}
+
 function fpsLimitRow(group) {
   return choiceRow(t('FPS-limiet'), t('Lager = langer spelen op je batterij en een koelere laptop'), [[0, t('Uit')], [20, '20'], [30, '30'], [45, '45']],
     Number(S.settings.fpsLimit) || 0, async (v) => { S.settings.fpsLimit = v; await nova.sys.fpsLimit(v); }, group);
@@ -707,6 +713,7 @@ async function openQuickMenu() {
   if (s.brightness.available) items.push(sliderRow(t('Helderheid'), s.brightness.level, (v) => nova.sys.brightness(v), { min: 5 }));
   items.push(perfOverlayRow('qm'));
   items.push(fpsLimitRow('qm'));
+  items.push(nightRow('qm'));
   items.push(await sleepTimerRow('qm'));
   if (S.game && S.game.phase === 'running') items.push(actionRow(t('Screenshot maken'), t('Van {title}, zonder dit menu erop', { title: S.game.title }), 'camera', () => { UI.closeModal(modal); takeScreenshot(); }, 'qm'));
   if (S.game) items.push(actionRow(t('{title} stoppen', { title: S.game.title }), t('Sluit de game die nu draait'), 'stop', () => { UI.closeModal(modal); stopGame(); }, 'qm'));
@@ -736,6 +743,30 @@ function showPendingShot() {
 }
 window.addEventListener('focus', () => setTimeout(showPendingShot, 300));
 
+// Eigen achtergrond: kies een foto (Afbeeldingen + screenshots)
+async function pickBackground() {
+  Sounds.open();
+  const items = await nova.album.pictures().catch(() => []);
+  let modal;
+  const grid = h('div', { class: 'album-grid' });
+  if (!items.length) grid.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1', margin: 0 } }, h('h3', {}, t('Geen foto\'s gevonden')),
+    h('p', {}, t('Zet foto\'s in de map Afbeeldingen (Pictures) of maak een screenshot met Home + RB.'))));
+  for (const it of items) {
+    grid.append(h('button', { class: 'album-item', 'data-focus': true, 'data-group': 'album', onclick: async () => { UI.closeModal(modal); await setBackgroundPhoto(it.url); } },
+      h('img', { src: it.url, alt: '', loading: 'lazy' }), h('div', { class: 'album-cap' }, h('b', {}, shotTitle(it)))));
+  }
+  modal = UI.openModal(h('div', { class: 'sheet album-sheet' }, h('h2', {}, t('Achtergrond kiezen')), h('p', { class: 'sub' }, t('Kies een foto voor achter het menu.')), grid),
+    { focus: () => Focus.first('album') });
+}
+
+async function setBackgroundPhoto(url) {
+  await saveSettings({ bgStyle: 'photo', bgPhoto: url });
+  if (typeof applyLook === 'function') applyLook();
+  Sounds.select();
+  toast(t('Nieuwe achtergrond ingesteld'), { icon: 'image' });
+  if (S.setCat === 'look' && S.tab === 'settings') renderCat();
+}
+
 function shotTitle(it) {
   if (it.game) return it.game;
   if (it.appid) { const g = S.games.find((x) => x.launch && String(x.launch.appid) === String(it.appid)); if (g) return g.title; }
@@ -750,7 +781,7 @@ async function openAlbum() {
   if (!items.length) {
     grid.append(h('div', { class: 'empty', style: { gridColumn: '1 / -1', margin: 0 } },
       h('h3', {}, t('Nog geen screenshots')),
-      h('p', {}, t('Druk tijdens een game op de Home-knop en kies "Screenshot maken" in het snelmenu.'))));
+      h('p', {}, t('Houd Home ingedrukt en druk op RB, ook midden in een game.'))));
   }
   items.forEach((it, i) => {
     grid.append(h('button', { class: 'album-item', 'data-focus': true, 'data-group': 'album', onclick: () => openShot(items, i, () => { UI.closeModal(modal); openAlbum(); }) },
@@ -786,6 +817,7 @@ function openShot(items, start, onChanged) {
     h('div', { class: 'd-actions' },
       h('button', { class: 'btn ghost', 'data-focus': true, 'data-group': 'shot', onclick: () => step(-1) }, '‹ ' + t('Vorige')),
       h('button', { class: 'btn primary', 'data-focus': true, 'data-group': 'shot', 'data-autofocus': true, onclick: () => step(1) }, t('Volgende') + ' ›'),
+      h('button', { class: 'btn ghost', 'data-focus': true, 'data-group': 'shot', onclick: () => { UI.closeModal(modal); setBackgroundPhoto(items[i].url); } }, h('span', { class: 'ico image' }), t('Als achtergrond')),
       h('button', { class: 'btn ghost', 'data-focus': true, 'data-group': 'shot', onclick: del }, h('span', { class: 'ico trash' }), t('Verwijderen')),
       h('button', { class: 'btn ghost', 'data-focus': true, 'data-group': 'shot', onclick: () => { Sounds.back(); UI.closeModal(modal); } }, t('Sluiten')))),
   { className: 'shot-modal' });
@@ -849,6 +881,32 @@ function openPadKeys(g) {
       } }, t('Standaard')),
       h('button', { class: 'btn primary', 'data-focus': true, onclick: () => { Sounds.back(); UI.closeModal(modal); } }, t('Klaar')))),
   { focus: () => Focus.first('padkeys') });
+}
+
+// ================================================================ Home-sneltoetsen
+async function padCombo(btn) {
+  if (btn === 'rb') {
+    // screenshot; staat het menu over de game, dan eerst terug naar de game
+    if (S.game && S.game.phase === 'running' && document.hasFocus()) return takeScreenshot();
+    const r = await nova.album.take(S.game ? S.game.title : 'RandomOS').catch(() => null);
+    Input.rumble(0.2, 0.6, 80);
+    pendingShot = r && r.ok ? 'ok' : 'fail';
+    if (document.hasFocus()) showPendingShot();
+  } else if (btn === 'up' || btn === 'down') {
+    const st = S.status || (await nova.sys.status());
+    if (!st || !st.volume || !st.volume.available) return;
+    const level = Math.max(0, Math.min(100, (st.volume.level || 0) + (btn === 'up' ? 10 : -10)));
+    await nova.sys.volume(level);
+    st.volume.level = level;
+    showOsd({ type: 'volume', level, muted: false });
+  } else if (btn === 'lb') {
+    const order = ['off', 'fps', 'full'];
+    const next = order[(order.indexOf(S.settings.perfOverlay || 'off') + 1) % order.length];
+    await saveSettings({ perfOverlay: next });
+    nova.sys.perfOverlay(next);
+    Input.rumble(0.1, 0.3, 40);
+    if (document.hasFocus()) toast(next === 'off' ? t('FPS-meter uit') : next === 'fps' ? t('FPS-meter aan') : t('Uitgebreide prestatie-overlay aan'), { icon: 'gamepad' });
+  }
 }
 
 // ================================================================ volume/helderheid-indicator (laptoptoetsen)
@@ -947,6 +1005,8 @@ function handleAction(a, extra = {}) {
   Sounds.unlock();
   if (extra.source === 'pad' && (!S.settings.pad || S.settings.pad === 'auto') && document.body.dataset.pad !== Input.lastStyle) applyPadStyle(Input.lastStyle);
 
+  // Home + knop: sneltoetsen, ook tijdens een game
+  if (a === 'combo') { padCombo(extra.btn); return; }
   // Staat er iets anders vooraan (game, Steam)? Dan alleen de Home-knop gebruiken.
   if (!document.hasFocus() && !['guide', 'guide-up', 'guide-long'].includes(a)) return;
   // Tijdens een game staat de shell op de achtergrond: alleen "Home ingedrukt houden" doet iets

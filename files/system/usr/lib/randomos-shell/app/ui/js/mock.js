@@ -79,9 +79,14 @@ if (!window.nova) {
         { url: 'img/mc-hero.jpg', path: '/x/steam_3.jpg', appid: '413150', source: 'steam', date: Date.now() - 3 * 86400000 },
       ],
       remove: async () => ({ ok: true }),
+      pictures: async () => [
+        { url: 'img/mc-hero.jpg', path: '/home/x/Pictures/minecraft.jpg', game: 'minecraft', date: Date.now() },
+        { url: 'img/mascot.png', path: '/home/x/Pictures/astronaut.png', game: 'astronaut', date: Date.now() - 1000 },
+      ],
     },
     sys: {
       fpsLimit: async () => ({ ok: true }),
+      night: async (mode) => ({ ok: true, active: mode === 'on' }),
       fpsGame: async () => ({ ok: true }),
       storage: async () => ({ available: true, size: 237e9, used: 141e9, free: 96e9 }),
       sleepTimer: async (min) => (min ? { at: Date.now() + min * 60000, min } : { at: 0, min: 0 }),

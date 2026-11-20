@@ -115,6 +115,7 @@ handle('games:apps', () => games.listApps());
 handle('games:downloads', () => games.listDownloads());
 handle('album:take', (title) => album.take(String(title || '')));
 handle('album:list', () => album.list());
+handle('album:pictures', () => album.pictures());
 handle('album:remove', (p) => album.remove(String(p || '')));
 handle('games:add-app', (id) => games.addApp(String(id || '')));
 handle('games:remove', (id) => games.removeCustom(String(id || '')));
@@ -193,6 +194,8 @@ app.whenReady().then(() => {
   launcher.ensureSteam();
   try { overlay.setLevel(settings.load().perfOverlay || 'off'); } catch {}
   try { system.setFpsLimit(settings.load().fpsLimit || 0); } catch {}
+  applyNight();
+  setInterval(applyNight, 60000);
   startMediaKeys();
   padswap.onChange((on) => send('pad:sysswap', on));
   try { padswap.apply(!!settings.load().swapAB); } catch {}
@@ -205,6 +208,28 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => app.quit());
+
+// Nachtlicht: aan, uit of automatisch 's avonds (20:00-07:00)
+function nightActive(s) {
+  if (s.night === 'on') return true;
+  if (s.night !== 'auto') return false;
+  const h = new Date().getHours();
+  return h >= 20 || h < 7;
+}
+function applyNight() {
+  try {
+    const s = settings.load();
+    system.setNightLight(nightActive(s) ? Math.max(10, Math.min(100, Number(s.nightStrength) || 50)) / 100 : 0);
+  } catch {}
+}
+handle('sys:night', (mode, strength) => {
+  const patch = {};
+  if (['off', 'on', 'auto'].includes(mode)) patch.night = mode;
+  if (strength != null) patch.nightStrength = Math.max(10, Math.min(100, Number(strength) || 50));
+  const s = settings.save(patch);
+  applyNight();
+  return { ok: true, active: nightActive(s), night: s.night, nightStrength: s.nightStrength };
+});
 
 // Aan/uit-knop (logind laat hem op Bazzite aan Steam over, maar Steam draait hier op de achtergrond):
 // tijdens een game = slaapstand (zoals een console), in het menu = aan/uit-menu tonen

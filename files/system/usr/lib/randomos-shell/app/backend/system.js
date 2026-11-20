@@ -59,6 +59,19 @@ async function storage() {
   return { available: true, size, used, free: avail };
 }
 
+// Nachtlicht via gamescope (werkt ook in games). amount 0..1; 0 = uit.
+// gamescope verwacht drie floats (sterkte, tint, verzadiging) als 32-bit getallen.
+const floatBits = (f) => { const b = Buffer.alloc(4); b.writeFloatLE(f); return b.readUInt32LE(); };
+let nightNow = -1;
+async function setNightLight(amount) {
+  const a = Math.max(0, Math.min(1, Number(amount) || 0));
+  if (Math.abs(a - nightNow) < 0.001) return { ok: true };
+  nightNow = a;
+  if (a === 0) return run('xprop', ['-root', '-remove', 'GAMESCOPE_COLOR_NIGHT_MODE']);
+  const vals = [floatBits(a), floatBits(0.08), floatBits(0.9)].join(',');
+  return run('xprop', ['-root', '-f', 'GAMESCOPE_COLOR_NIGHT_MODE', '32c', '-set', 'GAMESCOPE_COLOR_NIGHT_MODE', vals]);
+}
+
 // FPS-limiet voor games via gamescope (0 = geen limiet)
 function setFpsLimit(fps) {
   const n = Math.max(0, Math.min(240, Number(fps) || 0));
@@ -238,4 +251,4 @@ async function power(action, app) {
   }
 }
 
-module.exports = { storage, setFpsLimit, status, info, setVolume, toggleMute, setBrightness, wifiList, wifiConnect, wifiRadio, btPower, btDevices, btScan, btConnect, btDisconnect, power };
+module.exports = { storage, setNightLight, setFpsLimit, status, info, setVolume, toggleMute, setBrightness, wifiList, wifiConnect, wifiRadio, btPower, btDevices, btScan, btConnect, btDisconnect, power };
