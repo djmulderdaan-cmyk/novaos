@@ -851,6 +851,25 @@ function openPadKeys(g) {
   { focus: () => Focus.first('padkeys') });
 }
 
+// ================================================================ volume/helderheid-indicator (laptoptoetsen)
+let osdTimer = null;
+function showOsd(d) {
+  let el = $('#osd');
+  if (!el) {
+    el = h('div', { id: 'osd' }, h('span', { class: 'ico' }), h('div', { class: 'dl-bar' }, h('div', { class: 'dl-fill' })), h('span', { class: 'osd-val' }));
+    document.body.append(el);
+  }
+  const vol = d.type === 'volume';
+  $('.ico', el).className = `ico ${vol ? (d.muted || !d.level ? 'mute' : 'sound') : 'sun'}`;
+  $('.dl-fill', el).style.width = `${d.muted ? 0 : Math.max(0, Math.min(100, d.level))}%`;
+  $('.osd-val', el).textContent = d.muted ? t('Uit') : `${d.level}%`;
+  el.classList.add('on');
+  clearTimeout(osdTimer);
+  osdTimer = setTimeout(() => el.classList.remove('on'), 1600);
+  if (S.status && vol && S.status.volume) { S.status.volume.level = d.level; S.status.volume.muted = d.muted; }
+}
+if (nova.onOsd) nova.onOsd(showOsd);
+
 // ================================================================ slaaptimer
 async function sleepTimerRow(group) {
   const st = (nova.sys.sleepTimerGet ? await nova.sys.sleepTimerGet().catch(() => null) : null) || { at: 0, min: 0 };

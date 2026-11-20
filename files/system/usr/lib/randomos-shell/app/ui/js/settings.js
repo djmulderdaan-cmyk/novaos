@@ -452,6 +452,15 @@ async function renderCat() {
       glyph('a'), t('Kiezen / spelen'), glyph('b'), t('Terug'), glyph('x'), t('Favoriet maken'), glyph('y'), t('Snelmenu'),
       h('span', { style: { display: 'flex', gap: '4px' } }, glyph('lb'), glyph('rb')), t('Tabblad wisselen'),
       glyph('start'), t('Aan/uit-menu'), glyph('guide'), t('Naar Home (ingedrukt houden tijdens een game: game stoppen)'))));
+    out.push(group(t('Handig om te weten'), ...[
+      [t('Screenshot'), t('Tijdens een game: Home-knop → snelmenu → Screenshot maken. Ze staan in Album op Home.')],
+      [t('Langer spelen op de batterij'), t('Zet een FPS-limiet in het snelmenu, of per game bij Info.')],
+      [t('Apps toevoegen'), t('Instellingen → Games → Apps toevoegen. Firefox, YouTube en andere apps worden dan tegels.')],
+      [t('Eigen games'), t('Unity- en .exe-games: bij Info kies je welke toets elke controllerknop is.')],
+      [t('Verras me'), t('Weet je niet wat je wilt spelen? De Verras me-tegel op Home kiest iets voor je.')],
+      [t('Slaaptimer'), t('In het snelmenu: de laptop gaat na 30 minuten tot 2 uur vanzelf slapen.')],
+      [t('Volume en helderheid'), t('De toetsen op het toetsenbord werken overal, ook tijdens een game.')],
+    ].map(([title, desc]) => h('div', { class: 'row static' }, rowText(title, desc)))));
   }
 
   if (S.setCat !== id) return;

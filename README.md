@@ -142,6 +142,7 @@ Het hoofdmenu van RandomOS. Bediening:
 - **FPS-limiet** (20/30/45) in het snelmenu en bij Energie: langer spelen op de batterij; plus **temperatuur** en **resterende batterijtijd** in het snelmenu
 - **FPS-limiet per game** (bij *Info*): schakelt vanzelf als die game start
 - **Opslag** (Instellingen): hoe vol je schijf is en je grootste games
+- **Volume- en helderheidstoetsen** van de laptop werken overal (ook tijdens een game), met een balkje bovenin het menu
 - **Unity- en .exe-games** zonder controller-ondersteuning: je controller werkt als toetsenbord en muis (per game aan/uit bij *Info*); bij *Info → Knoppen instellen* kies je per knop welke toets of muisknop hij is, en of de sticks WASD, pijltjes of de muis zijn
 
 **Toetsenbord & muis** werken ook overal:

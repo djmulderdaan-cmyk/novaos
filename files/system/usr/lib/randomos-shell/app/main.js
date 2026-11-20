@@ -1,6 +1,8 @@
 // RandomOS Shell - Electron hoofdproces
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const { spawn } = require('child_process');
 const games = require('./backend/games');
 const system = require('./backend/system');
 const launcher = require('./backend/launcher');
@@ -191,6 +193,7 @@ app.whenReady().then(() => {
   launcher.ensureSteam();
   try { overlay.setLevel(settings.load().perfOverlay || 'off'); } catch {}
   try { system.setFpsLimit(settings.load().fpsLimit || 0); } catch {}
+  startMediaKeys();
   padswap.onChange((on) => send('pad:sysswap', on));
   try { padswap.apply(!!settings.load().swapAB); } catch {}
   setInterval(() => { padswap.sync(); }, 5000);
@@ -202,3 +205,26 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => app.quit());
+
+// Volume- en helderheidstoetsen van de laptop (werkt ook tijdens een game)
+let mediaKeys = null;
+function startMediaKeys(tries = 0) {
+  const bin = '/usr/libexec/randomos/mediakeys';
+  if (!fs.existsSync(bin)) return;
+  const child = spawn(bin, [], { stdio: ['ignore', 'pipe', 'ignore'] });
+  mediaKeys = child;
+  let buf = '';
+  child.stdout.on('data', (d) => {
+    buf += d;
+    let i;
+    while ((i = buf.indexOf('\n')) >= 0) {
+      const [k, a, b] = buf.slice(0, i).trim().split(' ');
+      buf = buf.slice(i + 1);
+      if (k === 'vol') send('osd', { type: 'volume', level: Number(a), muted: b === '1' });
+      else if (k === 'bright') send('osd', { type: 'brightness', level: Number(a) });
+    }
+  });
+  child.on('error', () => {});
+  child.on('exit', () => { if (mediaKeys === child && tries < 5) setTimeout(() => startMediaKeys(tries + 1), 5000); });
+}
+app.on('will-quit', () => { const c = mediaKeys; mediaKeys = null; if (c) try { c.kill(); } catch {} });

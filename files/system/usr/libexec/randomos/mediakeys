@@ -1,0 +1,128 @@
+#!/usr/bin/python3
+"""RandomOS: volume- en helderheidstoetsen van de laptop laten werken (ook tijdens een game).
+
+In Game Mode doet Steam dit normaal, maar in RandomOS draait Steam op de achtergrond.
+Leest de toetsenbord-apparaten (zonder ze over te nemen: de game merkt niks) en regelt
+het volume met wpctl en de helderheid met brightnessctl.
+Schrijft na elke wijziging een regel naar stdout voor de shell:
+  vol <0-100> <0|1 gedempt>
+  bright <0-100>
+"""
+import re
+import select
+import signal
+import subprocess
+import sys
+import time
+
+try:
+    import evdev
+    from evdev import ecodes as e, InputDevice
+except ImportError:
+    print("mediakeys: python3-evdev ontbreekt", file=sys.stderr)
+    sys.exit(1)
+
+KEYS = {e.KEY_VOLUMEUP, e.KEY_VOLUMEDOWN, e.KEY_MUTE, e.KEY_BRIGHTNESSUP, e.KEY_BRIGHTNESSDOWN}
+SKIP_NAMES = ("RandomOS virtuele", "randomos-test")
+SINK = "@DEFAULT_AUDIO_SINK@"
+
+
+def run(*args):
+    try:
+        return subprocess.run(args, capture_output=True, text=True, timeout=3).stdout
+    except Exception:
+        return ""
+
+
+def report_volume():
+    out = run("wpctl", "get-volume", SINK)
+    m = re.search(r"Volume:\s*([\d.]+)", out)
+    if m:
+        print(f"vol {round(float(m.group(1)) * 100)} {1 if 'MUTED' in out else 0}", flush=True)
+
+
+def report_brightness():
+    out = run("brightnessctl", "-m", "-c", "backlight")  # naam,klasse,huidig,procent,max
+    parts = out.strip().split(",")
+    if len(parts) >= 4:
+        print(f"bright {parts[3].rstrip('%')}", flush=True)
+
+
+def act(code):
+    if code == e.KEY_VOLUMEUP:
+        run("wpctl", "set-mute", SINK, "0")
+        run("wpctl", "set-volume", "-l", "1.0", SINK, "5%+")
+        report_volume()
+    elif code == e.KEY_VOLUMEDOWN:
+        run("wpctl", "set-volume", SINK, "5%-")
+        report_volume()
+    elif code == e.KEY_MUTE:
+        run("wpctl", "set-mute", SINK, "toggle")
+        report_volume()
+    elif code == e.KEY_BRIGHTNESSUP:
+        run("brightnessctl", "-q", "-c", "backlight", "set", "5%+")
+        report_brightness()
+    elif code == e.KEY_BRIGHTNESSDOWN:
+        run("brightnessctl", "-q", "-c", "backlight", "-n", "5%", "set", "5%-")  # nooit helemaal zwart
+        report_brightness()
+
+
+def main():
+    devices = {}
+    running = [True]
+
+    def stop(*_):
+        running[0] = False
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+
+    def rescan():
+        for path in evdev.list_devices():
+            if path in devices:
+                continue
+            try:
+                dev = InputDevice(path)
+            except Exception:
+                continue
+            try:
+                keys = set(dev.capabilities().get(e.EV_KEY, []))
+                if keys & KEYS and not dev.name.startswith(SKIP_NAMES):
+                    devices[path] = dev
+                else:
+                    dev.close()
+            except Exception:
+                dev.close()
+
+    rescan()
+    last_scan = time.monotonic()
+    last = {}  # code -> tijd: dezelfde toets via twee apparaten maar één keer
+    while running[0]:
+        if time.monotonic() - last_scan > 5:
+            rescan(); last_scan = time.monotonic()
+        fds = {dev.fd: (path, dev) for path, dev in devices.items()}
+        try:
+            r, _, _ = select.select(list(fds), [], [], 1.0)
+        except (OSError, ValueError):
+            r = []
+        for fd in r:
+            path, dev = fds[fd]
+            try:
+                events = list(dev.read())
+            except OSError:
+                devices.pop(path, None)
+                continue
+            for ev in events:
+                if ev.type != e.EV_KEY or ev.code not in KEYS or ev.value == 0:
+                    continue
+                if ev.code == e.KEY_MUTE and ev.value == 2:
+                    continue  # dempen niet herhalen bij ingedrukt houden
+                now = time.monotonic()
+                if ev.value == 1 and now - last.get((ev.code, "press"), 0) < 0.08:
+                    continue  # zelfde druk via een tweede apparaat
+                if ev.value == 1:
+                    last[(ev.code, "press")] = now
+                act(ev.code)
+
+
+if __name__ == "__main__":
+    main()

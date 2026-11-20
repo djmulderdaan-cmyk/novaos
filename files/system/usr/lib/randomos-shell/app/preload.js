@@ -49,6 +49,7 @@ contextBridge.exposeInMainWorld('nova', {
     sleepTimerGet: call('sys:sleep-timer-get'),
   },
   onGameState: (cb) => ipcRenderer.on('game:state', (_e, s) => cb(s)),
+  onOsd: (cb) => ipcRenderer.on('osd', (_e, d) => cb(d)),
   sysSwap: call('pad:sysswap'),
   onSysSwap: (cb) => ipcRenderer.on('pad:sysswap', (_e, on) => cb(on)),
   updates: {
