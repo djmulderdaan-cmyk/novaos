@@ -272,6 +272,16 @@ function listHeroic() {
   return games;
 }
 
+// Is dit een Unity-game? (UnityPlayer.dll naast de .exe die in het commando staat)
+function detectUnity(cmd) {
+  const paths = [...String(cmd).matchAll(/"([^"]+\.exe)"|(\S+\.exe)/gi)].map((m) => (m[1] || m[2]));
+  for (let p of paths) {
+    p = p.replace(/^\$HOME|^~/, HOME).replace(/\$\{HOME\}/, HOME).replace(/\\\$HOME/, HOME);
+    if (exists(path.join(path.dirname(p), 'UnityPlayer.dll'))) return true;
+  }
+  return false;
+}
+
 // Eigen games: ~/.config/randomos/games.json
 // [{ "name": "Mijn game", "cmd": "/pad/naar/game.sh", "cover": "/pad/naar/cover.jpg", "hero": "..." }]
 function listCustom() {
@@ -288,6 +298,8 @@ function listCustom() {
       lastPlayed: 0,
       playtime: 0,
       art: { cover: img(g.cover), hero: img(g.hero || g.cover), logo: img(g.logo), header: [] },
+      // Unity-games, en Windows-games via umu/Proton (vaak alleen toetsenbord/muis)
+      unity: detectUnity(g.cmd) || /umu-run|\.exe/i.test(g.cmd),
       launch: { type: 'custom', cmd: g.cmd, windowClass: g.windowClass || null },
     };
   });
@@ -299,6 +311,8 @@ function listAll() {
   for (const g of all) {
     if (s.recent[g.id]) g.lastPlayed = Math.max(g.lastPlayed, s.recent[g.id]);
     g.favorite = s.favorites.includes(g.id);
+    const pm = (s.padMap || {})[g.id];
+    g.padMap = pm === undefined ? !!g.unity : !!pm;
   }
   return all.filter((g) => g.installed);
 }

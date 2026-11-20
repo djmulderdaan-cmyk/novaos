@@ -1,0 +1,158 @@
+#!/usr/bin/python3
+"""RandomOS: controller -> toetsenbord + muis.
+
+Voor games die alleen toetsenbord/muis ondersteunen (veel kleine Unity-games).
+Leest alle aangesloten controllers en maakt een virtueel toetsenbord + muis.
+Stopt netjes bij SIGTERM. De controller zelf blijft gewoon beschikbaar.
+"""
+import select
+import signal
+import sys
+import time
+
+try:
+    import evdev
+    from evdev import ecodes as e, UInput, InputDevice
+except ImportError:
+    print("pad2kbm: python3-evdev ontbreekt", file=sys.stderr)
+    sys.exit(1)
+
+NAME = "RandomOS virtuele toetsenbord+muis"
+
+# --- indeling -----------------------------------------------------------------
+BUTTONS = {
+    e.BTN_SOUTH: e.KEY_SPACE,      # A: springen
+    e.BTN_EAST: e.KEY_E,           # B: gebruiken
+    e.BTN_WEST: e.KEY_R,           # X: herladen (Xbox-indeling: BTN_WEST = X)
+    e.BTN_NORTH: e.KEY_F,          # Y
+    e.BTN_TL: e.KEY_Q,             # LB
+    e.BTN_TR: e.KEY_ENTER,         # RB
+    e.BTN_THUMBL: e.KEY_LEFTSHIFT, # linker stick indrukken: rennen
+    e.BTN_THUMBR: e.KEY_C,         # rechter stick indrukken: bukken
+    e.BTN_START: e.KEY_ESC,        # Start
+    e.BTN_SELECT: e.KEY_TAB,       # Select
+    e.BTN_TL2: e.BTN_RIGHT,        # LT als knop
+    e.BTN_TR2: e.BTN_LEFT,         # RT als knop
+    e.BTN_DPAD_UP: e.KEY_UP, e.BTN_DPAD_DOWN: e.KEY_DOWN,
+    e.BTN_DPAD_LEFT: e.KEY_LEFT, e.BTN_DPAD_RIGHT: e.KEY_RIGHT,
+}
+STICK_DEAD = 0.45      # linker stick -> WASD vanaf deze uitslag
+MOUSE_DEAD = 0.12      # rechter stick dode zone
+MOUSE_SPEED = 22.0     # pixels per tick bij volle uitslag
+TRIGGER_ON = 0.5       # analoge triggers -> klik vanaf deze waarde
+TICK = 1 / 120
+
+OUT_KEYS = sorted(set(BUTTONS.values()) | {e.KEY_W, e.KEY_A, e.KEY_S, e.KEY_D, e.BTN_LEFT, e.BTN_RIGHT, e.BTN_MIDDLE})
+
+
+def is_gamepad(dev):
+    if dev.name == NAME:
+        return False
+    caps = dev.capabilities()
+    keys = set(caps.get(e.EV_KEY, []))
+    absx = {a[0] if isinstance(a, tuple) else a for a in caps.get(e.EV_ABS, [])}
+    return (e.BTN_SOUTH in keys or e.BTN_GAMEPAD in keys) and e.ABS_X in absx
+
+
+def norm(dev, code, value):
+    """As-waarde naar -1..1 (sticks) of 0..1 (triggers)."""
+    try:
+        info = dev.absinfo(code)
+    except Exception:
+        return 0.0
+    lo, hi = info.min, info.max
+    if hi == lo:
+        return 0.0
+    if lo >= 0 and code in (e.ABS_Z, e.ABS_RZ, e.ABS_GAS, e.ABS_BRAKE):
+        return (value - lo) / (hi - lo)
+    mid = (hi + lo) / 2
+    return max(-1.0, min(1.0, (value - mid) / ((hi - lo) / 2)))
+
+
+def main():
+    ui = UInput({e.EV_KEY: OUT_KEYS, e.EV_REL: [e.REL_X, e.REL_Y, e.REL_WHEEL]}, name=NAME)
+    devices = {}
+    state = {"lx": 0.0, "ly": 0.0, "rx": 0.0, "ry": 0.0, "lt": False, "rt": False, "hatx": 0, "haty": 0}
+    held = set()
+    running = [True]
+
+    def stop(*_):
+        running[0] = False
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+
+    def press(key, down):
+        if down and key not in held:
+            held.add(key); ui.write(e.EV_KEY, key, 1)
+        elif not down and key in held:
+            held.discard(key); ui.write(e.EV_KEY, key, 0)
+
+    def rescan():
+        for path in evdev.list_devices():
+            if path in devices:
+                continue
+            try:
+                dev = InputDevice(path)
+                if is_gamepad(dev):
+                    devices[path] = dev
+                    print(f"pad2kbm: controller {dev.name}", flush=True)
+                else:
+                    dev.close()
+            except Exception:
+                pass
+
+    rescan()
+    last_scan = time.monotonic()
+    while running[0]:
+        if time.monotonic() - last_scan > 3:
+            rescan(); last_scan = time.monotonic()
+        fds = {dev.fd: (path, dev) for path, dev in devices.items()}
+        try:
+            r, _, _ = select.select(list(fds), [], [], TICK)
+        except (OSError, ValueError):
+            r = []
+        for fd in r:
+            path, dev = fds[fd]
+            try:
+                events = list(dev.read())
+            except OSError:
+                devices.pop(path, None)
+                continue
+            for ev in events:
+                if ev.type == e.EV_KEY and ev.code in BUTTONS:
+                    press(BUTTONS[ev.code], ev.value != 0)
+                elif ev.type == e.EV_ABS:
+                    if ev.code == e.ABS_X: state["lx"] = norm(dev, ev.code, ev.value)
+                    elif ev.code == e.ABS_Y: state["ly"] = norm(dev, ev.code, ev.value)
+                    elif ev.code == e.ABS_RX: state["rx"] = norm(dev, ev.code, ev.value)
+                    elif ev.code == e.ABS_RY: state["ry"] = norm(dev, ev.code, ev.value)
+                    elif ev.code in (e.ABS_Z, e.ABS_BRAKE): state["lt"] = norm(dev, ev.code, ev.value) > TRIGGER_ON
+                    elif ev.code in (e.ABS_RZ, e.ABS_GAS): state["rt"] = norm(dev, ev.code, ev.value) > TRIGGER_ON
+                    elif ev.code == e.ABS_HAT0X: state["hatx"] = ev.value
+                    elif ev.code == e.ABS_HAT0Y: state["haty"] = ev.value
+        # linker stick -> WASD, D-pad (hat) -> pijltjes, triggers -> muisknoppen
+        press(e.KEY_A, state["lx"] < -STICK_DEAD); press(e.KEY_D, state["lx"] > STICK_DEAD)
+        press(e.KEY_W, state["ly"] < -STICK_DEAD); press(e.KEY_S, state["ly"] > STICK_DEAD)
+        press(e.KEY_LEFT, state["hatx"] < 0); press(e.KEY_RIGHT, state["hatx"] > 0)
+        press(e.KEY_UP, state["haty"] < 0); press(e.KEY_DOWN, state["haty"] > 0)
+        press(e.BTN_RIGHT, state["lt"]); press(e.BTN_LEFT, state["rt"])
+        # rechter stick -> muis (met versnellingscurve)
+        dx = dy = 0
+        for axis, sign in (("rx", 1), ("ry", 1)):
+            v = state[axis]
+            if abs(v) > MOUSE_DEAD:
+                amt = ((abs(v) - MOUSE_DEAD) / (1 - MOUSE_DEAD)) ** 1.6 * MOUSE_SPEED * (1 if v > 0 else -1)
+                if axis == "rx": dx = int(round(amt))
+                else: dy = int(round(amt))
+        if dx: ui.write(e.EV_REL, e.REL_X, dx)
+        if dy: ui.write(e.EV_REL, e.REL_Y, dy)
+        ui.syn()
+
+    for key in list(held):
+        ui.write(e.EV_KEY, key, 0)
+    ui.syn()
+    ui.close()
+
+
+if __name__ == "__main__":
+    main()

@@ -423,6 +423,15 @@ function openDetail(g) {
           h('button', { class: 'btn primary', 'data-focus': true, 'data-autofocus': true, onclick: () => { UI.closeModal(modal); launch(g); } }, h('span', { class: 'ico play' }), t('Spelen')),
           favBtn,
           h('button', { class: 'btn ghost', 'data-focus': true, onclick: async () => { UI.closeModal(modal); await toggleHidden(g); } }, isHidden(g) ? t('Weer tonen') : t('Verbergen')),
+          g.source === 'custom' && g.launch && g.launch.type === 'custom' ? h('button', { class: 'btn ghost', 'data-focus': true, id: 'padMapBtn', onclick: async (ev) => {
+            const on = !g.padMap;
+            await saveSettings({ padMap: { ...(S.settings.padMap || {}), [g.id]: on } });
+            g.padMap = on;
+            S.games.forEach((x) => { if (x.id === g.id) x.padMap = on; });
+            ev.currentTarget.lastChild.textContent = on ? t('Controller als toetsenbord: aan') : t('Controller als toetsenbord: uit');
+            Sounds.toggle(on);
+            toast(on ? t('Je controller werkt in deze game als toetsenbord en muis') : t('Controller-vertaling uit voor deze game'), { icon: 'gamepad' });
+          } }, h('span', { class: 'ico gamepad' }), h('span', {}, g.padMap ? t('Controller als toetsenbord: aan') : t('Controller als toetsenbord: uit'))) : null,
           h('button', { class: 'btn ghost', 'data-focus': true, onclick: () => { Sounds.back(); UI.closeModal(modal); } }, t('Sluiten'))))));
   favBtn.addEventListener('click', async () => { await toggleFavorite(g); const now = S.games.find((x) => x.id === g.id); $('.ico', favBtn).classList.toggle('on', now.favorite); favBtn.lastChild.textContent = now.favorite ? t('Favoriet') : t('Favoriet maken'); });
   modal = UI.openModal(sheet);

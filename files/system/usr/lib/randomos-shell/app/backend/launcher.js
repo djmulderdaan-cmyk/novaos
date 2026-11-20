@@ -166,6 +166,7 @@ function launch(game) {
     const classes = l.type === 'modrinth' ? ['Minecraft', '[Mm]odrinth'] : l.windowClass ? [l.windowClass] : [];
     focusCurrentGame(fakeAppId(game.id), () => gamePids(game.id), { classes });
   }
+  if (game.padMap && l.type !== 'steam' && l.type !== 'steamshortcut') startPadMapper();
   startPolling();
   return { ok: true };
 }
@@ -212,8 +213,24 @@ function startPolling() {
   }, 2000);
 }
 
+// Controller -> toetsenbord/muis voor games zonder controller-ondersteuning
+let padMapper = null;
+function startPadMapper() {
+  stopPadMapper();
+  try {
+    padMapper = spawn('/usr/libexec/randomos/pad2kbm', [], { stdio: 'ignore' });
+    padMapper.on('exit', () => { padMapper = null; });
+    padMapper.on('error', () => { padMapper = null; });
+    console.log('[launcher] controller -> toetsenbord/muis aan');
+  } catch { padMapper = null; }
+}
+function stopPadMapper() {
+  if (padMapper) { try { padMapper.kill('SIGTERM'); } catch {} padMapper = null; }
+}
+
 function finish(error) {
   clearInterval(pollTimer);
+  stopPadMapper();
   gamescope.focusShell();
   const ended = current && current.game;
   current = null;
