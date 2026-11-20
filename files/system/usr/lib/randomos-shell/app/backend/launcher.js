@@ -180,7 +180,7 @@ function launch(game) {
 // Welk gamescope-appid hoort bij de vensters van deze game?
 function gameAppId(cur) {
   const l = cur.game.launch;
-  return l.type === 'steam' || l.type === 'steamshortcut' ? Number(l.appid) : fakeAppId(cur.game.id);
+  return Number(l.type === 'steam' || l.type === 'steamshortcut' ? l.appid : fakeAppId(cur.game.id));
 }
 
 function focusableApps() {
