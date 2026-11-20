@@ -29,11 +29,14 @@ const Ambient = (() => {
   function frame(t) {
     if (!running) return;
     requestAnimationFrame(frame);
-    if (t - last < 33) return;
+    // niks gedaan in de laatste 20 s? dan rustiger tekenen (scheelt veel CPU/GPU en batterij)
+    const idle = typeof Idle !== 'undefined' && Date.now() - Idle.last > 20000;
+    if (t - last < (idle ? 80 : 33)) return;
+    const step = Math.min(3, (t - last) / 33) || 1; // zelfde snelheid, minder beelden
     last = t;
     ctx.clearRect(0, 0, w, hgt);
     for (const p of parts) {
-      p.x += p.vx * 2; p.y += p.vy * 2; p.tw += 0.03;
+      p.x += p.vx * 2 * step; p.y += p.vy * 2 * step; p.tw += 0.03 * step;
       if (p.y < -10) Object.assign(p, spawn(false));
       const alpha = p.a * (0.6 + 0.4 * Math.sin(p.tw));
       ctx.beginPath();

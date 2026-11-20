@@ -12,6 +12,7 @@ const DEFAULTS = {
   perfOverlay: 'off',
   fpsLimit: 0, // 0 = geen limiet
   fpsGame: {}, // gameId -> eigen FPS-limiet voor die game
+  padKeys: {}, // gameId -> eigen knoppenindeling voor controller-als-toetsenbord
   sounds: true,
   ambient: true,
   intro: true,

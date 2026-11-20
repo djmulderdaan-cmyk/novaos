@@ -4,7 +4,13 @@
 Voor games die alleen toetsenbord/muis ondersteunen (veel kleine Unity-games).
 Leest alle aangesloten controllers en maakt een virtueel toetsenbord + muis.
 Stopt netjes bij SIGTERM. De controller zelf blijft gewoon beschikbaar.
+
+Eigen indeling per game via de omgevingsvariabele RANDOMOS_PADMAP (JSON), bv.
+  {"a": "space", "x": "click", "lstick": "arrows", "rstick": "none"}
+Knoppen: a b x y lb rb lt rt l3 r3 start select; sticks: lstick rstick; dpad.
 """
+import json
+import os
 import select
 import signal
 import sys
@@ -19,30 +25,57 @@ except ImportError:
 
 NAME = "RandomOS virtuele toetsenbord+muis"
 
-# --- indeling -----------------------------------------------------------------
-BUTTONS = {
-    e.BTN_SOUTH: e.KEY_SPACE,      # A: springen
-    e.BTN_EAST: e.KEY_E,           # B: gebruiken
-    e.BTN_WEST: e.KEY_R,           # X: herladen (Xbox-indeling: BTN_WEST = X)
-    e.BTN_NORTH: e.KEY_F,          # Y
-    e.BTN_TL: e.KEY_Q,             # LB
-    e.BTN_TR: e.KEY_ENTER,         # RB
-    e.BTN_THUMBL: e.KEY_LEFTSHIFT, # linker stick indrukken: rennen
-    e.BTN_THUMBR: e.KEY_C,         # rechter stick indrukken: bukken
-    e.BTN_START: e.KEY_ESC,        # Start
-    e.BTN_SELECT: e.KEY_TAB,       # Select
-    e.BTN_TL2: e.BTN_RIGHT,        # LT als knop
-    e.BTN_TR2: e.BTN_LEFT,         # RT als knop
-    e.BTN_DPAD_UP: e.KEY_UP, e.BTN_DPAD_DOWN: e.KEY_DOWN,
-    e.BTN_DPAD_LEFT: e.KEY_LEFT, e.BTN_DPAD_RIGHT: e.KEY_RIGHT,
+# --- welke toetsen je kunt kiezen -----------------------------------------------
+KEYS = {
+    "space": e.KEY_SPACE, "enter": e.KEY_ENTER, "esc": e.KEY_ESC, "tab": e.KEY_TAB,
+    "shift": e.KEY_LEFTSHIFT, "ctrl": e.KEY_LEFTCTRL, "alt": e.KEY_LEFTALT, "backspace": e.KEY_BACKSPACE,
+    "click": e.BTN_LEFT, "rclick": e.BTN_RIGHT, "mclick": e.BTN_MIDDLE,
+    "up": e.KEY_UP, "down": e.KEY_DOWN, "left": e.KEY_LEFT, "right": e.KEY_RIGHT,
 }
-STICK_DEAD = 0.45      # linker stick -> WASD vanaf deze uitslag
-MOUSE_DEAD = 0.12      # rechter stick dode zone
+for ch in "abcdefghijklmnopqrstuvwxyz":
+    KEYS[ch] = getattr(e, "KEY_" + ch.upper())
+for n in "0123456789":
+    KEYS[n] = getattr(e, "KEY_" + n)
+
+# --- standaard indeling ---------------------------------------------------------
+DEFAULT = {
+    "a": "space", "b": "e", "x": "r", "y": "f",
+    "lb": "q", "rb": "enter", "lt": "rclick", "rt": "click",
+    "l3": "shift", "r3": "c", "start": "esc", "select": "tab",
+    "lstick": "wasd", "rstick": "mouse", "dpad": "arrows",
+}
+BUTTON_CODES = {
+    "a": e.BTN_SOUTH, "b": e.BTN_EAST, "x": e.BTN_WEST, "y": e.BTN_NORTH,
+    "lb": e.BTN_TL, "rb": e.BTN_TR, "l3": e.BTN_THUMBL, "r3": e.BTN_THUMBR,
+    "start": e.BTN_START, "select": e.BTN_SELECT,
+}
+DIRS = {
+    "wasd": (e.KEY_W, e.KEY_A, e.KEY_S, e.KEY_D),
+    "arrows": (e.KEY_UP, e.KEY_LEFT, e.KEY_DOWN, e.KEY_RIGHT),
+}
+
+STICK_DEAD = 0.45      # stick -> toetsen vanaf deze uitslag
+MOUSE_DEAD = 0.12      # stick -> muis: dode zone
 MOUSE_SPEED = 22.0     # pixels per tick bij volle uitslag
-TRIGGER_ON = 0.5       # analoge triggers -> klik vanaf deze waarde
+TRIGGER_ON = 0.5       # analoge triggers -> knop vanaf deze waarde
 TICK = 1 / 120
 
-OUT_KEYS = sorted(set(BUTTONS.values()) | {e.KEY_W, e.KEY_A, e.KEY_S, e.KEY_D, e.BTN_LEFT, e.BTN_RIGHT, e.BTN_MIDDLE})
+
+def load_map():
+    m = dict(DEFAULT)
+    try:
+        user = json.loads(os.environ.get("RANDOMOS_PADMAP") or "{}")
+        if isinstance(user, dict):
+            for k, v in user.items():
+                if k in DEFAULT and isinstance(v, str):
+                    m[k] = v
+    except ValueError:
+        pass
+    return m
+
+
+def key(name):
+    return KEYS.get(name)
 
 
 def is_gamepad(dev):
@@ -70,22 +103,57 @@ def norm(dev, code, value):
 
 
 def main():
-    ui = UInput({e.EV_KEY: OUT_KEYS, e.EV_REL: [e.REL_X, e.REL_Y, e.REL_WHEEL]}, name=NAME)
+    m = load_map()
+    buttons = {BUTTON_CODES[b]: key(m[b]) for b in BUTTON_CODES if key(m[b])}
+    # ook de D-pad als knoppen (sommige controllers melden hem zo)
+    dpad = DIRS.get(m["dpad"])
+    if dpad:
+        buttons.update({e.BTN_DPAD_UP: dpad[0], e.BTN_DPAD_LEFT: dpad[1], e.BTN_DPAD_DOWN: dpad[2], e.BTN_DPAD_RIGHT: dpad[3]})
+    lt, rt = key(m["lt"]), key(m["rt"])
+    # digitale triggers (sommige controllers)
+    if lt:
+        buttons[e.BTN_TL2] = lt
+    if rt:
+        buttons[e.BTN_TR2] = rt
+
+    out_keys = set(KEYS.values()) | {e.KEY_W, e.KEY_A, e.KEY_S, e.KEY_D}
+    ui = UInput({e.EV_KEY: sorted(out_keys), e.EV_REL: [e.REL_X, e.REL_Y, e.REL_WHEEL]}, name=NAME)
     devices = {}
     state = {"lx": 0.0, "ly": 0.0, "rx": 0.0, "ry": 0.0, "lt": False, "rt": False, "hatx": 0, "haty": 0}
     held = set()
     running = [True]
+    print(f"pad2kbm: indeling {json.dumps(m)}", flush=True)
 
     def stop(*_):
         running[0] = False
     signal.signal(signal.SIGTERM, stop)
     signal.signal(signal.SIGINT, stop)
 
-    def press(key, down):
-        if down and key not in held:
-            held.add(key); ui.write(e.EV_KEY, key, 1)
-        elif not down and key in held:
-            held.discard(key); ui.write(e.EV_KEY, key, 0)
+    # meerdere bronnen kunnen dezelfde toets willen (bv. stick én D-pad op pijltjes)
+    wants = {}
+
+    def want(source, code, down):
+        if code is None:
+            return
+        s = wants.setdefault(code, set())
+        if down:
+            s.add(source)
+        else:
+            s.discard(source)
+        on = bool(s)
+        if on and code not in held:
+            held.add(code); ui.write(e.EV_KEY, code, 1)
+        elif not on and code in held:
+            held.discard(code); ui.write(e.EV_KEY, code, 0)
+
+    def stick_keys(prefix, mode, x, y):
+        d = DIRS.get(mode)
+        if not d:
+            return
+        want(prefix + "u", d[0], y < -STICK_DEAD)
+        want(prefix + "l", d[1], x < -STICK_DEAD)
+        want(prefix + "d", d[2], y > STICK_DEAD)
+        want(prefix + "r", d[3], x > STICK_DEAD)
 
     def rescan():
         for path in evdev.list_devices():
@@ -119,8 +187,8 @@ def main():
                 devices.pop(path, None)
                 continue
             for ev in events:
-                if ev.type == e.EV_KEY and ev.code in BUTTONS:
-                    press(BUTTONS[ev.code], ev.value != 0)
+                if ev.type == e.EV_KEY and ev.code in buttons:
+                    want("b%d" % ev.code, buttons[ev.code], ev.value != 0)
                 elif ev.type == e.EV_ABS:
                     if ev.code == e.ABS_X: state["lx"] = norm(dev, ev.code, ev.value)
                     elif ev.code == e.ABS_Y: state["ly"] = norm(dev, ev.code, ev.value)
@@ -130,26 +198,30 @@ def main():
                     elif ev.code in (e.ABS_RZ, e.ABS_GAS): state["rt"] = norm(dev, ev.code, ev.value) > TRIGGER_ON
                     elif ev.code == e.ABS_HAT0X: state["hatx"] = ev.value
                     elif ev.code == e.ABS_HAT0Y: state["haty"] = ev.value
-        # linker stick -> WASD, D-pad (hat) -> pijltjes, triggers -> muisknoppen
-        press(e.KEY_A, state["lx"] < -STICK_DEAD); press(e.KEY_D, state["lx"] > STICK_DEAD)
-        press(e.KEY_W, state["ly"] < -STICK_DEAD); press(e.KEY_S, state["ly"] > STICK_DEAD)
-        press(e.KEY_LEFT, state["hatx"] < 0); press(e.KEY_RIGHT, state["hatx"] > 0)
-        press(e.KEY_UP, state["haty"] < 0); press(e.KEY_DOWN, state["haty"] > 0)
-        press(e.BTN_RIGHT, state["lt"]); press(e.BTN_LEFT, state["rt"])
-        # rechter stick -> muis (met versnellingscurve)
+        # sticks -> toetsen, D-pad (hat) -> toetsen, analoge triggers -> knoppen
+        stick_keys("ls", m["lstick"], state["lx"], state["ly"])
+        stick_keys("rs", m["rstick"], state["rx"], state["ry"])
+        if dpad:
+            want("hu", dpad[0], state["haty"] < 0); want("hl", dpad[1], state["hatx"] < 0)
+            want("hd", dpad[2], state["haty"] > 0); want("hr", dpad[3], state["hatx"] > 0)
+        want("lt", lt, state["lt"]); want("rt", rt, state["rt"])
+        # stick -> muis (met versnellingscurve)
         dx = dy = 0
-        for axis, sign in (("rx", 1), ("ry", 1)):
-            v = state[axis]
-            if abs(v) > MOUSE_DEAD:
-                amt = ((abs(v) - MOUSE_DEAD) / (1 - MOUSE_DEAD)) ** 1.6 * MOUSE_SPEED * (1 if v > 0 else -1)
-                if axis == "rx": dx = int(round(amt))
-                else: dy = int(round(amt))
+        for stick in ("l", "r"):
+            if m[stick + "stick"] != "mouse":
+                continue
+            for axis in ("x", "y"):
+                v = state[stick + axis]
+                if abs(v) > MOUSE_DEAD:
+                    amt = ((abs(v) - MOUSE_DEAD) / (1 - MOUSE_DEAD)) ** 1.6 * MOUSE_SPEED * (1 if v > 0 else -1)
+                    if axis == "x": dx += int(round(amt))
+                    else: dy += int(round(amt))
         if dx: ui.write(e.EV_REL, e.REL_X, dx)
         if dy: ui.write(e.EV_REL, e.REL_Y, dy)
         ui.syn()
 
-    for key in list(held):
-        ui.write(e.EV_KEY, key, 0)
+    for code in list(held):
+        ui.write(e.EV_KEY, code, 0)
     ui.syn()
     ui.close()
 

@@ -182,7 +182,7 @@ function launch(game) {
     const classes = l.type === 'modrinth' ? ['Minecraft', '[Mm]odrinth'] : l.windowClass ? [l.windowClass] : [];
     focusCurrentGame(fakeAppId(game.id), () => gamePids(game.id), { classes });
   }
-  if (game.padMap && l.type !== 'steam' && l.type !== 'steamshortcut') startPadMapper();
+  if (game.padMap && l.type !== 'steam' && l.type !== 'steamshortcut') startPadMapper(game.id);
   startPolling();
   return { ok: true };
 }
@@ -281,10 +281,12 @@ function startPolling() {
 
 // Controller -> toetsenbord/muis voor games zonder controller-ondersteuning
 let padMapper = null;
-function startPadMapper() {
+function startPadMapper(gameId) {
   stopPadMapper();
   try {
-    padMapper = spawn('/usr/libexec/randomos/pad2kbm', [], { stdio: 'ignore' });
+    // eigen indeling van deze game (Info → Knoppen instellen)
+    const keys = (settings.load().padKeys || {})[gameId] || {};
+    padMapper = spawn('/usr/libexec/randomos/pad2kbm', [], { stdio: 'ignore', env: { ...process.env, RANDOMOS_PADMAP: JSON.stringify(keys) } });
     padMapper.on('exit', () => { padMapper = null; });
     padMapper.on('error', () => { padMapper = null; });
     console.log('[launcher] controller -> toetsenbord/muis aan');

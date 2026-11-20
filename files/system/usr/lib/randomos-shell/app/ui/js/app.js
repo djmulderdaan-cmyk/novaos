@@ -144,6 +144,7 @@ function playIntro() {
     const word = $('#introWord');
     word.innerHTML = '';
     'RandomOS'.split('').forEach((c, i) => word.append(h('span', { style: { animationDelay: `${900 + i * 60}ms` } }, c)));
+    intro.style.display = '';
     intro.classList.remove('done', 'play');
     void intro.offsetWidth;
     intro.classList.add('play');
@@ -152,6 +153,8 @@ function playIntro() {
       if (!S.introActive) return;
       S.introActive = false;
       intro.classList.add('done');
+      // na het uitfaden helemaal weg: anders blijft de (onzichtbare) mascotte-animatie GPU kosten
+      setTimeout(() => { if (!S.introActive) intro.style.display = 'none'; }, 1500);
       resolve();
     };
     S.skipIntro = finish;
@@ -542,6 +545,7 @@ function openDetail(g) {
             Sounds.toggle(on);
             toast(on ? t('Je controller werkt in deze game als toetsenbord en muis') : t('Controller-vertaling uit voor deze game'), { icon: 'gamepad' });
           } }, h('span', { class: 'ico gamepad' }), h('span', {}, g.padMap ? t('Controller als toetsenbord: aan') : t('Controller als toetsenbord: uit'))) : null,
+          g.source === 'custom' && g.launch && g.launch.type === 'custom' ? h('button', { class: 'btn ghost', 'data-focus': true, onclick: () => { UI.closeModal(modal); openPadKeys(g); } }, h('span', { class: 'ico gamepad' }), t('Knoppen instellen')) : null,
           g.source === 'custom' ? h('button', { class: 'btn ghost', 'data-focus': true, onclick: async () => {
             UI.closeModal(modal);
             const ok = await confirmBox(t('Tegel verwijderen?'), t('{title} verdwijnt uit je bibliotheek. De game of app zelf blijft gewoon geïnstalleerd.', { title: g.title }), t('Verwijderen'));
@@ -786,6 +790,65 @@ function openShot(items, start, onChanged) {
       h('button', { class: 'btn ghost', 'data-focus': true, 'data-group': 'shot', onclick: () => { Sounds.back(); UI.closeModal(modal); } }, t('Sluiten')))),
   { className: 'shot-modal' });
   show();
+}
+
+// ================================================================ knoppen instellen (controller als toetsenbord)
+const PAD_DEFAULT = { a: 'space', b: 'e', x: 'r', y: 'f', lb: 'q', rb: 'enter', lt: 'rclick', rt: 'click', l3: 'shift', r3: 'c', start: 'esc', select: 'tab', lstick: 'wasd', rstick: 'mouse', dpad: 'arrows' };
+const PAD_KEYS = ['space', 'enter', 'esc', 'tab', 'shift', 'ctrl', 'alt', 'click', 'rclick', 'mclick', 'e', 'f', 'r', 'q', 'c', 'x', 'z', 'v', 'g', 'h', 'i', 'm', 'p', 'w', 'a', 's', 'd', 'up', 'down', 'left', 'right', '1', '2', '3', '4', '5', 'none'];
+const PAD_MOVES = ['wasd', 'arrows', 'mouse', 'none'];
+
+function padKeyLabel(k) {
+  const names = { space: t('Spatie'), enter: 'Enter', esc: 'Esc', tab: 'Tab', shift: 'Shift', ctrl: 'Ctrl', alt: 'Alt', click: t('Linkermuisknop'), rclick: t('Rechtermuisknop'), mclick: t('Middelste muisknop'),
+    up: '↑', down: '↓', left: '←', right: '→', none: t('Niks'), wasd: 'W A S D', arrows: t('Pijltjes'), mouse: t('Muis') };
+  return names[k] || k.toUpperCase();
+}
+
+// Rij die met links/rechts (of A) door een lijst waarden bladert: ‹ waarde ›
+function cycleRow(title, options, value, onChange, group) {
+  let i = Math.max(0, options.indexOf(value));
+  const val = h('span', { class: 'r-val cycle-val' });
+  const paint = () => { val.textContent = `‹  ${padKeyLabel(options[i])}  ›`; };
+  const row = h('div', { class: 'row', 'data-focus': true, 'data-slider': '', 'data-group': group }, rowText(title, null), val);
+  const set = (k) => { i = (k + options.length) % options.length; paint(); Sounds.tick(); onChange(options[i]); };
+  row.addEventListener('adjust', (e) => set(i + e.detail));
+  row.addEventListener('click', () => set(i + 1));
+  paint();
+  row._set = (v) => { i = Math.max(0, options.indexOf(v)); paint(); };
+  return row;
+}
+
+function openPadKeys(g) {
+  Sounds.open();
+  const cur = { ...PAD_DEFAULT, ...((S.settings.padKeys || {})[g.id] || {}) };
+  const save = async () => {
+    const diff = {};
+    for (const k of Object.keys(PAD_DEFAULT)) if (cur[k] !== PAD_DEFAULT[k]) diff[k] = cur[k];
+    const all = { ...(S.settings.padKeys || {}) };
+    if (Object.keys(diff).length) all[g.id] = diff; else delete all[g.id];
+    await saveSettings({ padKeys: all });
+  };
+  const style = padStyleNow();
+  const F = FACE[style], O = OTHER[style];
+  const rows = [
+    ['a', F[0]], ['b', F[1]], ['x', F[2]], ['y', F[3]],
+    ['lb', O.lb], ['rb', O.rb], ['lt', { xbox: 'LT', ps: 'L2', nintendo: 'ZL' }[style]], ['rt', { xbox: 'RT', ps: 'R2', nintendo: 'ZR' }[style]],
+    ['l3', t('Linkerstick indrukken')], ['r3', t('Rechterstick indrukken')], ['start', O.start], ['select', O.select],
+  ].map(([k, label]) => cycleRow(label, PAD_KEYS, cur[k], (v) => { cur[k] = v; save(); }, 'padkeys'));
+  const moves = [
+    ['lstick', t('Linkerstick')], ['rstick', t('Rechterstick')], ['dpad', t('D-pad')],
+  ].map(([k, label]) => cycleRow(label, k === 'dpad' ? ['arrows', 'wasd', 'none'] : PAD_MOVES, cur[k], (v) => { cur[k] = v; save(); }, 'padkeys'));
+  let modal;
+  modal = UI.openModal(h('div', { class: 'sheet padkeys-sheet' },
+    h('h2', {}, t('Knoppen instellen')), h('p', { class: 'sub' }, t('{title}: wat elke knop in deze game doet. Links/rechts om te kiezen. Geldt vanaf de volgende keer starten.', { title: g.title })),
+    group(t('Bewegen'), ...moves), group(t('Knoppen'), ...rows),
+    h('div', { class: 'd-actions' },
+      h('button', { class: 'btn ghost', 'data-focus': true, onclick: async () => {
+        Object.assign(cur, PAD_DEFAULT);
+        [...moves, ...rows].forEach((r, n) => r._set(cur[[...['lstick', 'rstick', 'dpad'], ...['a', 'b', 'x', 'y', 'lb', 'rb', 'lt', 'rt', 'l3', 'r3', 'start', 'select']][n]]));
+        await save(); toast(t('Standaardindeling teruggezet'));
+      } }, t('Standaard')),
+      h('button', { class: 'btn primary', 'data-focus': true, onclick: () => { Sounds.back(); UI.closeModal(modal); } }, t('Klaar')))),
+  { focus: () => Focus.first('padkeys') });
 }
 
 // ================================================================ slaaptimer
