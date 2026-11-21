@@ -371,6 +371,17 @@ function onShellFocus() {
   }
 }
 
+// Steam-game installeren (of een gratis game/demo toevoegen): Steam opent zijn eigen
+// installatiescherm waarin je bevestigt en een schijf kiest. Daarna zie je de download op Home.
+function installSteam(appid) {
+  if (!/^\d+$/.test(String(appid))) return { error: 'Game niet gevonden' };
+  ensureSteam();
+  spawn('steam', [`steam://install/${appid}`], { detached: true, stdio: 'ignore', env: STEAM_ENV }).unref();
+  gamescope.focusSteam();
+  watchSteamFront();
+  return { ok: true };
+}
+
 // Steam-vriendenlijst (een Steam-venster; terug met de Home-knop of door het te sluiten)
 function openSteamFriends() {
   ensureSteam();
@@ -576,4 +587,4 @@ function focusShell() {
   return { ok: true };
 }
 
-module.exports = { openSteamFriends, applyFps, currentGameId: () => (current ? current.game.id : null), showShellOverGame, resumeGame, watchdog, setEmitter, setSteamEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture, steamStatus, steamLogin, focusShell };
+module.exports = { installSteam, openSteamFriends, applyFps, currentGameId: () => (current ? current.game.id : null), showShellOverGame, resumeGame, watchdog, setEmitter, setSteamEmitter, ensureSteam, launch, stop, state: publicState, onShellBlur, onShellFocus, openSteamBigPicture, steamStatus, steamLogin, focusShell };

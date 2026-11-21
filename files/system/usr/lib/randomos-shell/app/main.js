@@ -113,6 +113,8 @@ handle('games:stop', () => launcher.stop());
 handle('games:show-shell', () => launcher.showShellOverGame());
 handle('games:resume', () => launcher.resumeGame());
 handle('games:apps', () => games.listApps());
+handle('games:catalog', () => games.catalog());
+handle('games:install', (appid) => launcher.installSteam(String(appid || '')));
 const achLang = () => (settings.load().lang === 'en' ? 'english' : 'dutch'); // Nederlands bestaat zelden: dan Engels
 handle('games:achievements', (appid) => { const r = games.steamRoot(); return r && /^\d+$/.test(String(appid)) ? achievements.forGame(r, String(appid), achLang()) : null; });
 handle('games:ach-summary', () => { const r = games.steamRoot(); return r ? achievements.summary(r) : {}; });

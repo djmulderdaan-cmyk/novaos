@@ -12,6 +12,8 @@ contextBridge.exposeInMainWorld('nova', {
     showShell: call('games:show-shell'),
     resume: call('games:resume'),
     apps: call('games:apps'),
+    catalog: call('games:catalog'),
+    install: call('games:install'),
     achievements: call('games:achievements'),
     achSummary: call('games:ach-summary'),
     downloads: call('games:downloads'),

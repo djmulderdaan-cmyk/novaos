@@ -342,6 +342,26 @@ function profile() {
   return { name: name || os.userInfo().username, avatar };
 }
 
+// ---------------------------------------------------------------- installeren: wat je hebt + gratis lijst
+const TOOL_DEMOS = /3DMark|Soundpad|Benchmark|Wallpaper/i;
+function catalog() {
+  const root = steamRoot();
+  if (!root) return { notInstalled: [], free: [] };
+  const present = new Set(listSteam().map((g) => String(g.appid))); // geïnstalleerd of bezig met downloaden
+  let owned = [];
+  try { owned = require('./steamowned').notInstalled(root, present, STEAM_SKIP_IDS); } catch {}
+  owned = owned.filter((g) => !TOOL_DEMOS.test(g.name) && !STEAM_SKIP.test(g.name));
+  const ownedIds = new Set(owned.map((g) => g.appid));
+  const mk = (appid, name, extra) => ({ id: `steam:${appid}`, appid, title: name, source: 'steam', installed: false, notInstalled: true,
+    lastPlayed: 0, playtime: 0, art: steamArt(root, appid), launch: { type: 'steam', appid }, ...extra });
+  const { CATALOG } = require('./freegames');
+  return {
+    notInstalled: owned.map((g) => mk(g.appid, g.name, { kind: g.type === 'demo' ? 'demo' : 'owned', owned: true }))
+      .sort((a, b) => a.title.localeCompare(b.title)),
+    free: CATALOG.filter((c) => !present.has(c.appid)).map((c) => mk(c.appid, c.name, { kind: c.kind, genre: c.genre, pad: !!c.pad, owned: ownedIds.has(c.appid) })),
+  };
+}
+
 // ---------------------------------------------------------------- Steam-downloads
 /** Steam-games die nu downloaden of updaten (uit de appmanifests), met voortgang. */
 function listDownloads() {
@@ -457,4 +477,4 @@ function removeCustom(gameId) {
   return { ok: true };
 }
 
-module.exports = { listAll, profile, steamRoot, listApps, addApp, removeCustom, listDownloads };
+module.exports = { listAll, profile, steamRoot, listApps, addApp, removeCustom, listDownloads, catalog };

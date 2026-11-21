@@ -226,6 +226,16 @@ main { position: relative; overflow: hidden; }
 .pf-plus { width: 84px; height: 84px; font-size: 40px; background: rgba(255, 255, 255, .1) !important; box-shadow: none; }
 .pf-name { font-weight: 700; }
 .pf-sub { font-size: .8rem; color: var(--text-3); }
+.tile .inst-badge { position: absolute; top: 8px; left: 8px; z-index: 3; }
+.inst-badge { display: inline-block; padding: 3px 9px; border-radius: 999px; font-size: .72rem; font-weight: 800; letter-spacing: .03em; color: #071028; background: #6be3a4; }
+.inst-badge.demo { background: #f5c542; }
+.inst-badge.owned { background: #7cc7ff; }
+.inst-badge.pad { background: rgba(255, 255, 255, .14); color: var(--text); }
+.inst-badge.static { margin-right: 6px; }
+.modal .inst-sheet { width: min(720px, 92vw); padding: 0; overflow: hidden; }
+.inst-head img { width: 100%; aspect-ratio: 460 / 215; object-fit: cover; display: block; }
+.inst-body { padding: 22px 28px 26px; }
+.inst-tags { margin-bottom: 8px; }
 .app-ico { width: 34px; height: 34px; object-fit: contain; border-radius: 8px; margin-right: 14px; flex: 0 0 auto; }
 .ico.dice { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><rect x='3' y='3' width='18' height='18' rx='4' fill='none' stroke='black' stroke-width='2'/><circle cx='8' cy='8' r='1.6'/><circle cx='16' cy='8' r='1.6'/><circle cx='12' cy='12' r='1.6'/><circle cx='8' cy='16' r='1.6'/><circle cx='16' cy='16' r='1.6'/></svg>"); }
 .ico.trash { --m: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path d='M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/></svg>"); }

@@ -64,6 +64,14 @@ if (!window.nova) {
         dlDone = Math.min(dlTotal, dlDone + 180e6);
         return dlDone < dlTotal ? [{ appid: '1145360', title: 'Hades', total: dlTotal, done: dlDone, pct: Math.floor((dlDone / dlTotal) * 100), update: false }] : [];
       },
+      catalog: async () => {
+        const mk = (appid, title, extra) => ({ id: 'steam:' + appid, appid, title, source: 'steam', installed: false, notInstalled: true, art: { cover: ['https://cdn.akamai.steamstatic.com/steam/apps/' + appid + '/library_600x900.jpg'], hero: [], logo: [], header: ['https://cdn.akamai.steamstatic.com/steam/apps/' + appid + '/header.jpg'] }, launch: { type: 'steam', appid }, ...extra });
+        return {
+          notInstalled: [mk('291550', 'Brawlhalla', { kind: 'owned', owned: true }), mk('2225070', 'Trackmania', { kind: 'owned', owned: true })],
+          free: [mk('2325290', 'Sky: Children of the Light', { kind: 'free', genre: 'Avontuur, rustig', pad: true }), mk('2633700', 'PowerWash Simulator (demo)', { kind: 'demo', genre: 'Schoonspuiten, rustig', pad: true }), mk('291550', 'Brawlhalla', { kind: 'free', genre: 'Vechtspel', pad: true, owned: true })],
+        };
+      },
+      install: async () => ({ ok: true }),
       achSummary: async () => ({ '1145360': { unlocked: 12, total: 49 } }),
       achievements: async () => ({ appid: '1145360', total: 4, unlocked: 2, list: [
         { name: 'Is There Anybody Out There?', desc: 'Ontsnap uit de onderwereld.', unlocked: true, time: Date.now() - 86400000, icon: 'img/mascot.png', iconGray: 'img/mascot.png' },

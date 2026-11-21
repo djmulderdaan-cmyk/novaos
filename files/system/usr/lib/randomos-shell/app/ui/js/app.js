@@ -370,6 +370,7 @@ async function pollDownloads() {
   S.downloads = list;
   for (const d of list) S.dlSeen.add(String(d.appid));
   const finished = prev.filter((p) => !list.some((d) => d.appid === p.appid));
+  if (list.length || finished.length) S.catalog = null;
   if (finished.length) {
     await loadGames();
     rerenderAll();
@@ -457,6 +458,12 @@ async function setBackground(urls) {
 
 // ================================================================ bibliotheek
 function libraryGames() {
+  // installeren: games die je hebt maar niet geïnstalleerd zijn, en de lijst met gratis games/demo's
+  if (S.filter === 'notinstalled' || S.filter === 'free') {
+    let cat = (S.catalog && S.catalog[S.filter === 'free' ? 'free' : 'notInstalled']) || [];
+    if (S.query) { const q = S.query.toLowerCase(); cat = cat.filter((g) => g.title.toLowerCase().includes(q)); }
+    return S.filter === 'free' ? cat : cat.slice().sort((a, b) => a.title.localeCompare(b.title));
+  }
   let list = S.games.filter((g) => !isHidden(g)).filter((g) => S.filter === 'all' || (S.filter === 'fav' ? g.favorite : g.source === S.filter));
   if (S.query) { const q = S.query.toLowerCase(); list = list.filter((g) => g.title.toLowerCase().includes(q)); }
   const byName = (a, b) => a.title.localeCompare(b.title);
@@ -469,7 +476,13 @@ function renderLibrary() {
   const chips = $('#chips');
   chips.innerHTML = '';
   const sources = ['steam', 'epic', 'gog', 'amazon', 'modrinth', 'custom'].filter((s) => S.games.some((g) => g.source === s));
-  const defs = [['all', t('Alle')], ['fav', t('Favorieten')], ...sources.map((s) => [s, SOURCE_NAMES[s]])];
+  const defs = [['all', t('Alle')], ['fav', t('Favorieten')], ...sources.map((s) => [s, SOURCE_NAMES[s]]), ['notinstalled', t('Niet geïnstalleerd')], ['free', t('Gratis')]];
+  // de installeer-lijsten één keer ophalen (en opnieuw na een afgeronde download)
+  if ((S.filter === 'notinstalled' || S.filter === 'free') && !S.catalog && !S.catalogLoading && nova.games.catalog) {
+    S.catalogLoading = true;
+    nova.games.catalog().then((c) => { S.catalog = c || { notInstalled: [], free: [] }; }).catch(() => { S.catalog = { notInstalled: [], free: [] }; })
+      .finally(() => { S.catalogLoading = false; if (S.tab === 'library') keepFocus($('#screen-library'), renderLibrary); });
+  }
   for (const [id, label] of defs) {
     const c = h('button', { class: `chip${S.filter === id ? ' on' : ''}`, 'data-focus': true, 'data-group': 'chips', 'data-id': `chip-${id}` }, label);
     c.addEventListener('click', () => { S.filter = id; Sounds.select(); keepFocus(chips, renderLibrary); });
@@ -488,7 +501,12 @@ function renderLibrary() {
       h('p', {}, S.query ? t('Geen game met “{q}” in de naam.', { q: S.query }) : S.filter === 'fav' ? t('Druk op X bij een game om hem favoriet te maken.') : t('Probeer een ander filter.'))));
     return;
   }
-  for (const g of list) grid.append(tile(g, { group: 'grid', onPress: openDetail }));
+  const installMode = S.filter === 'notinstalled' || S.filter === 'free';
+  for (const g of list) {
+    const el = tile(g, { group: 'grid', onPress: installMode ? openInstall : openDetail });
+    if (installMode) el.append(h('div', { class: `inst-badge ${g.kind}` }, g.kind === 'demo' ? t('Demo') : g.owned ? t('Van jou') : t('Gratis')));
+    grid.append(el);
+  }
 }
 
 $('#sortBtn').addEventListener('click', () => { S.sort = S.sort === 'recent' || !S.sort ? 'az' : S.sort === 'az' ? 'played' : 'recent'; Sounds.select(); keepFocus($('#screen-library'), renderLibrary); });
@@ -874,6 +892,33 @@ async function askWhoPlays() {
   try { if (sessionStorage.getItem('whoChosen')) return; } catch {}
   const list = await nova.profiles.list().catch(() => []);
   if (list.length > 1) openProfiles({ startup: true });
+}
+
+// ================================================================ installeren (Steam)
+function openInstall(g) {
+  Sounds.open();
+  let modal;
+  const head = h('div', { class: 'inst-head' });
+  const img = h('img', { alt: '' });
+  loadArt(img, [...(g.art.header || []), ...(g.art.hero || [])], () => img.remove());
+  head.append(img);
+  const badges = h('div', { class: 'inst-tags' },
+    h('span', { class: `inst-badge static ${g.kind}` }, g.kind === 'demo' ? t('Gratis demo') : g.owned ? t('Al van jou') : t('Gratis')),
+    g.pad ? h('span', { class: 'inst-badge static pad' }, t('Werkt met controller')) : null);
+  modal = UI.openModal(h('div', { class: 'sheet inst-sheet' }, head,
+    h('div', { class: 'inst-body' },
+      badges, h('h2', {}, g.title), g.genre ? h('p', { class: 'sub' }, g.genre) : null,
+      h('p', { class: 'sub', style: { marginTop: '8px' } }, g.owned ? t('Deze game staat al in je Steam-bibliotheek. Steam vraagt waar hij moet komen en begint met downloaden.')
+        : t('Steam vraagt of je hem aan je bibliotheek wilt toevoegen. Bevestig daar, dan begint de download. Kosten: niks.')),
+      h('div', { class: 'd-actions' },
+        h('button', { class: 'btn primary', 'data-focus': true, 'data-autofocus': true, onclick: async () => {
+          UI.closeModal(modal);
+          const r = await nova.games.install(g.appid);
+          if (r && r.ok) toast(t('Steam opent het installatiescherm. Bevestig daar met A.'), { icon: 'download', ms: 6000 });
+          else toast(tErr((r && r.error) || 'Mislukt'), { bad: true, icon: 'info' });
+          S.catalog = null; // na de download staat hij bij je games
+        } }, h('span', { class: 'ico download' }), t('Installeren')),
+        h('button', { class: 'btn ghost', 'data-focus': true, onclick: () => { Sounds.back(); UI.closeModal(modal); } }, t('Sluiten'))))));
 }
 
 // ================================================================ prestaties (Steam)
