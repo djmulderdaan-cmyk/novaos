@@ -145,6 +145,7 @@ if (!window.nova) {
         { mac: '12:34:56:78:9A:BC', name: 'JBL Flip 6', paired: false, connected: false },
       ]; },
       btConnect: async () => { await wait(1500); return { ok: true }; },
+      btRemove: async () => ({ ok: true }),
       btDisconnect: async () => ({ ok: true }),
       power: async (a) => { toast(t('Demo: "{a}" zou nu uitgevoerd worden', { a }), { icon: 'power' }); return { ok: true }; },
       steamStatus: async () => ({ running: true, loggedIn: !/steam-uit/.test(location.hash), signInOpen: false }),

@@ -200,7 +200,11 @@ async function wifiConnect(ssid, password) {
 
 async function wifiRadio(on) { await run('nmcli', ['radio', 'wifi', on ? 'on' : 'off']); return wifiStatus(); }
 
-async function btPower(on) { await run('bluetoothctl', ['power', on ? 'on' : 'off']); return bluetooth(); }
+async function btPower(on) {
+  await run('bluetoothctl', ['power', on ? 'on' : 'off']);
+  if (on) await run('bluetoothctl', ['pairable', 'on']);
+  return bluetooth();
+}
 
 async function btDevices() {
   const all = await run('bluetoothctl', ['devices']);
@@ -217,13 +221,67 @@ async function btDevices() {
 
 async function btScan() { await run('bluetoothctl', ['--timeout', '8', 'scan', 'on'], 12000); return btDevices(); }
 
-async function btConnect(mac) {
-  await run('bluetoothctl', ['--agent', 'NoInputNoOutput', 'pair', mac], 25000);
-  await run('bluetoothctl', ['trust', mac]);
+const MAC_RE = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/i;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const btBusy = new Set(); // nooit twee pogingen tegelijk voor hetzelfde apparaat
+
+async function btIsConnected(mac) { return /Connected:\s*yes/.test((await run('bluetoothctl', ['info', mac])).out); }
+
+async function btTryConnect(mac) {
   const r = await run('bluetoothctl', ['connect', mac], 20000);
-  return /Connection successful/i.test(r.out) ? { ok: true } : { error: 'Verbinden mislukt. Staat het apparaat in koppelmodus?' };
+  if (/Connection successful/i.test(r.out)) return true;
+  await sleep(800);
+  return btIsConnected(mac);
 }
-async function btDisconnect(mac) { await run('bluetoothctl', ['disconnect', mac]); return { ok: true }; }
+
+async function btConnect(mac) {
+  mac = String(mac || '');
+  if (!MAC_RE.test(mac)) return { error: 'Niet gevonden' };
+  if (btBusy.has(mac)) return { error: 'Even geduld, ik ben al aan het verbinden' };
+  btBusy.add(mac);
+  let scan = null;
+  try {
+    await run('bluetoothctl', ['power', 'on']);
+    const info = await run('bluetoothctl', ['info', mac]);
+    if (/Connected:\s*yes/.test(info.out)) return { ok: true };
+    if (/Paired:\s*yes/.test(info.out)) {
+      // al gekoppeld: gewoon verbinden (niet opnieuw koppelen), één keer opnieuw proberen
+      await run('bluetoothctl', ['trust', mac]);
+      if (await btTryConnect(mac)) return { ok: true };
+      await sleep(1500);
+      if (await btTryConnect(mac)) return { ok: true };
+      return { error: 'Verbinden mislukt. Druk een knop op het apparaat in en probeer het nog eens, of kies Vergeten en koppel opnieuw.' };
+    }
+    // nieuw apparaat: blijf zoeken tijdens het koppelen, anders "verdwijnt" het (Switch Pro Controller!)
+    scan = spawn('bluetoothctl', ['--timeout', '40', 'scan', 'on'], { stdio: 'ignore' });
+    await sleep(2500);
+    const p = await run('bluetoothctl', ['--agent', 'NoInputNoOutput', 'pair', mac], 30000);
+    const txt = p.out + p.err;
+    if (!/Pairing successful|AlreadyExists|Paired:\s*yes/i.test(txt) && !/Paired:\s*yes/.test((await run('bluetoothctl', ['info', mac])).out)) {
+      return { error: 'Koppelen mislukt. Staat het apparaat in koppelmodus (lampje knippert)?' };
+    }
+    await run('bluetoothctl', ['trust', mac]);
+    if (await btTryConnect(mac)) return { ok: true };
+    await sleep(1500);
+    if (await btTryConnect(mac)) return { ok: true };
+    return { error: 'Gekoppeld, maar verbinden lukte nog niet. Druk een knop op het apparaat in.' };
+  } finally {
+    btBusy.delete(mac);
+    if (scan) { try { scan.kill(); } catch {} run('bluetoothctl', ['scan', 'off']); }
+  }
+}
+async function btDisconnect(mac) {
+  if (!MAC_RE.test(String(mac || ''))) return { error: 'Niet gevonden' };
+  await run('bluetoothctl', ['disconnect', mac]);
+  return { ok: true };
+}
+// Apparaat vergeten: daarna opnieuw koppelen lost veel problemen op
+async function btRemove(mac) {
+  if (!MAC_RE.test(String(mac || ''))) return { error: 'Niet gevonden' };
+  await run('bluetoothctl', ['disconnect', mac]);
+  const r = await run('bluetoothctl', ['remove', mac]);
+  return /Device has been removed|not available/i.test(r.out + r.err) || r.ok ? { ok: true } : { error: 'Vergeten lukte niet' };
+}
 
 async function power(action, app) {
   switch (action) {
@@ -251,4 +309,4 @@ async function power(action, app) {
   }
 }
 
-module.exports = { storage, setNightLight, setFpsLimit, status, info, setVolume, toggleMute, setBrightness, wifiList, wifiConnect, wifiRadio, btPower, btDevices, btScan, btConnect, btDisconnect, power };
+module.exports = { storage, setNightLight, setFpsLimit, status, info, setVolume, toggleMute, setBrightness, wifiList, wifiConnect, wifiRadio, btPower, btDevices, btScan, btConnect, btDisconnect, btRemove, power };

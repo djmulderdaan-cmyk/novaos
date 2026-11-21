@@ -321,6 +321,24 @@ async function renderCat() {
   }
 
   if (id === 'bt') {
+    // menu voor een gekoppeld apparaat: verbinden/loskoppelen/vergeten
+    var btDeviceMenu = (d, refresh) => {
+      let modal;
+      const act = (fn) => async () => {
+        UI.closeModal(modal);
+        const r = await fn();
+        if (r && r.error) toast(tErr(r.error), { bad: true, icon: 'info', ms: 6000 });
+        refresh();
+      };
+      modal = UI.openModal(h('div', { class: 'sheet power-sheet' }, h('h2', {}, d.name),
+        h('div', { class: 'power-list' },
+          d.connected
+            ? actionRow(t('Loskoppelen'), null, 'bt', act(async () => { const r = await nova.sys.btDisconnect(d.mac); if (r && r.ok) toast(t('{name} losgekoppeld', { name: d.name })); return r; }), 'btm')
+            : actionRow(t('Verbinden'), t('Zet het apparaat aan of druk een knop in'), 'bt', act(async () => { toast(t('Verbinden met {name}…', { name: d.name }), { icon: 'refresh' }); const r = await nova.sys.btConnect(d.mac); if (r && r.ok) toast(t('{name} verbonden', { name: d.name })); return r; }), 'btm'),
+          actionRow(t('Vergeten'), t('Haalt het apparaat weg. Daarna kun je het opnieuw koppelen.'), 'trash', act(async () => { const r = await nova.sys.btRemove(d.mac); if (r && r.ok) toast(t('{name} vergeten', { name: d.name })); return r; }), 'btm'),
+          actionRow(t('Annuleren'), null, null, () => { Sounds.back(); UI.closeModal(modal); }, 'btm'))),
+      { focus: () => Focus.first('btm') });
+    };
     head(t('Bluetooth'), t('Koppel draadloze controllers, koptelefoons en speakers.'));
     const st = S.status || (await nova.sys.status());
     out.push(group(null, toggleRow(t('Bluetooth'), null, st.bluetooth.enabled, async (v) => { await nova.sys.btPower(v); await refreshStatus(); renderCat(); }, P)));
@@ -330,18 +348,25 @@ async function renderCat() {
         list.innerHTML = '';
         if (!Array.isArray(devs) || !devs.length) { list.append(h('div', { class: 'row static' }, t('Nog geen apparaten. Zet je apparaat in koppelmodus en kies "Zoeken".'))); return; }
         for (const d of devs) {
-          list.append(actionRow(d.name, d.connected ? t('Verbonden') : d.paired ? t('Gekoppeld') : t('Nieuw apparaat'), 'bt', async () => {
-            if (d.connected) { await nova.sys.btDisconnect(d.mac); toast(t('{name} losgekoppeld', { name: d.name })); }
-            else { toast(t('Verbinden met {name}…', { name: d.name }), { icon: 'refresh' }); const r = await nova.sys.btConnect(d.mac); r && r.ok ? toast(t('{name} verbonden', { name: d.name })) : toast(tErr((r && r.error) || 'Mislukt'), { bad: true, icon: 'info' }); }
+          const row = actionRow(d.name, d.connected ? t('Verbonden') : d.paired ? t('Gekoppeld') : t('Nieuw apparaat'), 'bt', async () => {
+            if (row.dataset.busy) return; // al bezig: niet nog een poging starten
+            if (d.paired || d.connected) return btDeviceMenu(d, async () => fill(await nova.sys.btDevices()));
+            row.dataset.busy = '1';
+            $('.r-desc', row).textContent = t('Koppelen… (kan 20 seconden duren)');
+            const r = await nova.sys.btConnect(d.mac);
+            delete row.dataset.busy;
+            r && r.ok ? toast(t('{name} verbonden', { name: d.name })) : toast(tErr((r && r.error) || 'Mislukt'), { bad: true, icon: 'info', ms: 6000 });
             fill(await nova.sys.btDevices());
-          }, P, d.connected ? h('span', { class: 'ok' }, t('Verbonden')) : null));
+          }, P, d.connected ? h('span', { class: 'ok' }, t('Verbonden')) : null);
+          list.append(row);
         }
       };
       out.push(group(t('Apparaten'), list));
       out.push(group(t('Koppelen'),
         h('div', { class: 'row static', style: { display: 'block', color: 'var(--text-2)', lineHeight: 1.6 } },
           h('b', { style: { color: 'var(--text)' } }, 'Xbox: '), t('houd de koppelknop bovenop 3 sec ingedrukt.') + ' ',
-          h('b', { style: { color: 'var(--text)' } }, 'PlayStation: '), t('houd PS + Share/Create ingedrukt tot het lampje knippert.')),
+          h('b', { style: { color: 'var(--text)' } }, 'PlayStation: '), t('houd PS + Share/Create ingedrukt tot het lampje knippert.') + ' ',
+          h('b', { style: { color: 'var(--text)' } }, 'Nintendo: '), t('houd het ronde knopje bovenop (naast de USB-poort) ingedrukt tot de lampjes heen en weer lopen.')),
         actionRow(t('Zoeken naar apparaten'), t('Duurt ongeveer 8 seconden'), 'refresh', async (row) => {
           $('.r-title', row).textContent = t('Zoeken…');
           fill(await nova.sys.btScan());

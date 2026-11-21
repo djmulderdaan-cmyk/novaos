@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('nova', {
     btScan: call('sys:bt-scan'),
     btConnect: call('sys:bt-connect'),
     btDisconnect: call('sys:bt-disconnect'),
+    btRemove: call('sys:bt-remove'),
     power: call('sys:power'),
     openSteam: call('sys:open-steam'),
     perfOverlay: call('perf:overlay'),

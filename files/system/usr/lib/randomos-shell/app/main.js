@@ -167,6 +167,7 @@ handle('sys:bt-devices', () => system.btDevices());
 handle('sys:bt-scan', () => system.btScan());
 handle('sys:bt-connect', (mac) => system.btConnect(mac));
 handle('sys:bt-disconnect', (mac) => system.btDisconnect(mac));
+handle('sys:bt-remove', (mac) => system.btRemove(mac));
 handle('sys:power', (action) => system.power(action, app));
 handle('sys:open-steam', () => launcher.openSteamBigPicture());
 handle('sys:steam-status', () => launcher.steamStatus());

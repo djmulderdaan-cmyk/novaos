@@ -18,7 +18,9 @@ load_all() {
   local n=0 id
   for id in $(ids); do
     n=$((n + 1))
-    [ "$("$IP" device "$id" profile name 2>/dev/null)" = "$NAME" ] && continue
+    # uitvoer is "Current profile name: 'RandomOS A/B wissel'": alleen herladen als hij er echt niet op staat
+    # (steeds herladen reset de controller elke 5 seconden)
+    "$IP" device "$id" profile name 2>/dev/null | grep -qF "'$NAME'" && continue
     "$IP" device "$id" profile load "$PROFILE" >/dev/null 2>&1
   done
   echo "$n"
